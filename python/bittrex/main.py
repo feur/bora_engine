@@ -3,9 +3,7 @@ import argparse
 from statistics import mean
 import os
 import MySQLdb
-import traceback
-import datetime
-from settings import *
+#from settings import *
 from ta import *
 
 
@@ -50,43 +48,7 @@ def GetEntry():
     return pair
     
     
-    """
- def MySql():
-     cnx = mysql.connector.connect(user='scott', database='employees')
-     cursor = cnx.cursor()
-
-    tomorrow = datetime.now().date() + timedelta(days=1)
-
-    add_employee = ("INSERT INTO employees "
-                   "(first_name, last_name, hire_date, gender, birth_date) "
-                   "VALUES (%s, %s, %s, %s, %s)")
-    add_salary = ("INSERT INTO salaries "
-                "(emp_no, salary, from_date, to_date) "
-                "VALUES (%(emp_no)s, %(salary)s, %(from_date)s, %(to_date)s)")
-
-    data_employee = ('Geert', 'Vanderkelen', tomorrow, 'M', date(1977, 6, 14))
-
-    # Insert new employee
-    cursor.execute(add_employee, data_employee)
-    emp_no = cursor.lastrowid
-
-    # Insert salary information
-    data_salary = {
-    'emp_no': emp_no,
-    'salary': 50000,
-    'from_date': tomorrow,
-    'to_date': date(9999, 1, 1),
-    }
-    cursor.execute(add_salary, data_salary)
-
-    # Make sure data is committed to the database
-    cnx.commit()
-
-    cursor.close()
-    cnx.close()
-
-"""
-
+    
 
 class MyPair(object):
 
@@ -94,13 +56,17 @@ class MyPair(object):
         """
             {u'C': 3.079e-05, u'H': 3.079e-05, u'L': 3.079e-05, u'O': 3.079e-05, u'BV': 0.04902765, u'T': u'2018-04-13T07:10:00', u'V': 1592.32422805}
             """
-        account = Bittrex("f5d8f6b8b21c44548d2799044d3105f0", "b3845ea35176403bb530a31fd4481165", api_version=API_V2_0)
-        data = account.get_candles(entry.pair, tick_interval=TICKINTERVAL_HOUR)
-        if (data['success'] == True):
-            self.pairName = entry.pair
-            self.data = data['result']
-            self.current = self.data[-1]
-            self.entry = entry
+            
+        while True:  
+            account = Bittrex("f5d8f6b8b21c44548d2799044d3105f0", "b3845ea35176403bb530a31fd4481165", api_version=API_V2_0)
+            data = account.get_candles(entry.pair, tick_interval=TICKINTERVAL_HOUR)
+        
+            if (data['success'] == True):
+                self.pairName = entry.pair
+                self.data = data['result']
+                self.current = self.data[-1]
+                self.entry = entry
+                break
             
             
     
@@ -352,7 +318,7 @@ class MyPair(object):
             self.signal = 2 #no signal
         elif self.trend == 0 and self.InCloud == 0 and self.crossover == 1:
             self.signal = 0 #strong sell
-        elif self.trend == 0 and self.InCloud == 0 and self.crossover == 1:
+        elif self.trend == 0 and self.InCloud == 1 and self.crossover == 1:
             self.signal = 1 #weak sell    
         elif self.trend == 2 and self.InCloud == 1 and self.crossover == 1:
             self.signal = 3 #weak buy
@@ -375,6 +341,35 @@ class MyPair(object):
         self.rating = self.fib * (self.diPos[-1] + self.diNeg[-1]) * self.momentum
         
         print(self.rating)
+        
+    
+    def UploadData(self,pid):
+    
+        """
+        Insert self.rating into Rating 
+        Insert self.signal into signal 
+        Insert self.PID into PID
+    
+        UPDATE Pairs SET Rating = 160, TradeSignal = 145, PID = 159 WHERE Pair = 'BTC-ADA';
+
+        """
+
+        conn = MySQLdb.connect("localhost","root","asdfqwer1","Bora")
+        cursor = conn.cursor()
+        
+        query = "UPDATE Pairs SET Rating = %d, TradeSignal = %d, PID = %d WHERE Pair = '%s'" % (self.rating,self.signal,pid,self.pairName)
+    
+        try:
+            cursor.execute(query)
+            conn.commit()
+        
+        except MySQLdb.Error as error:
+            print(error)
+            conn.rollback()
+ 
+      
+        conn.close()
+     
 
 
 
@@ -397,6 +392,7 @@ while True:  ##Forever loop
     pair.GetTrend()
     pair.GetSignal()
     pair.GetRating()
+    pair.UploadData(pid)
 
 
 
