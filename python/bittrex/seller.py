@@ -50,12 +50,52 @@ def GetEntry():
     return pair
     
  
+ 
+ 
+ """"
+Simple Logic: 
 
+if 0.05 btc is available (GetBTCBalance = 0.05) 
+    Go to Buy Function
+    
+
+Buy function: 
+- Sort Pairs by rating 
+- Find the first Pair with a signal of 4 
+- Buy that pair at 0.05 btc
+- Check buy order until its completed
+- if completed return to origin. 
+ 
+ 
+ """"
+ 
+ 
 class Account(object): 
     
     def __init__(self):
         
             self.account = Bittrex("f5d8f6b8b21c44548d2799044d3105f0", "b3845ea35176403bb530a31fd4481165", api_version=API_V2_0)
+            
+    def GetBTCAvailable(self):
+    
+    #First get available BTC
+    while True:
+        data = self.account.get_balance('BTC')
+        
+        if (data['success'] == True):
+            result = data['result']
+            self.BTCAvailable = result['Balance']
+            break
+            
+        
+
+    def Buypair(self):
+        
+    ##First sort out Pairs table by rating 
+        
+        
+        
+        buy_limit(self, market, quantity, rate):
            
             
     def GetCurrencyBalance(self, currency, pair, conn):
