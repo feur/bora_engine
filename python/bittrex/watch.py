@@ -32,7 +32,7 @@ class MyPair(object):
             account = Bittrex("f5d8f6b8b21c44548d2799044d3105f0", "b3845ea35176403bb530a31fd4481165", api_version=API_V2_0)
             data = account.get_candles(entry.pair, tick_interval=TICKINTERVAL_HOUR)
         
-            if (data['success'] == True):
+            if (data['success'] == True and data['result']):
                 self.pairName = entry.pair
                 self.data = data['result']
                 self.current = self.data[-1]

@@ -75,7 +75,7 @@ class Account(object):
         while True:
             data = self.account.get_balance(currency)
             
-            if (data['success'] == True):
+            if (data['success'] == True and data['result'] ):
                 result = data['result']
                 holding = result['Balance']
                 break
@@ -114,7 +114,7 @@ class Account(object):
         while True:
             data = self.account.get_balance('BTC')
             
-            if (data['success'] == True):
+            if (data['success'] == True and data['result']):
                 result = data['result']
                 self.RemainingBTC = result['Balance']
                 break
