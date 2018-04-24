@@ -3,7 +3,7 @@ import argparse
 from statistics import mean
 import os
 import MySQLdb
-#from settings import *
+from settings import *
 from ta import *
 
 
@@ -308,7 +308,7 @@ class MyPair(object):
         self.momentum = GetMomentum(self.data)    
         
         #Get a,b,c,d,e,f from database
-        conn = MySQLdb.connect("localhost","root","asdfqwer1","Bora")
+        conn = MySQLdb.connect(DB_HOST,DB_USER,DB_PW,DB_NAME)
         cursor = conn.cursor()
     
         query = "SELECT * FROM Config WHERE PAIR = '%s'" % (self.pairName)
@@ -346,7 +346,7 @@ class MyPair(object):
 
         """
 
-        conn = MySQLdb.connect("localhost","root","asdfqwer1","Bora")
+        conn = MySQLdb.connect(DB_HOST,DB_USER,DB_PW,DB_NAME)
         cursor = conn.cursor()
         
         query = "UPDATE Pairs SET Rating = %d, TradeSignal = %d, PID = %d WHERE Pair = '%s'" % (self.rating,self.signal,pid,self.pairName)

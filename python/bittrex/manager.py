@@ -6,7 +6,7 @@ import time
 import MySQLdb
 import subprocess
 
-#from settings import *
+from settings import *
 
 
 
@@ -146,7 +146,7 @@ ListofCurrencies= [] ##list of Currencies e.g. ADA, OMG
 
 print("pid is: %d" % pid)
 
-conn = MySQLdb.connect("localhost","root","asdfqwer1","Bora")
+conn = MySQLdb.connect(DB_HOST,DB_USER,DB_PW,DB_NAME)
 
 cursor = conn.cursor()
 
@@ -163,7 +163,7 @@ try:
         print("watching %s " % str(data[i][0]))
         ListofPairs.append(str(data[i][0]))
         ListofCurrencies.append(str(data[i][7]))
-        process = subprocess.call("python ~/Documents/sailfin/python/bittrex/main.py " + "-p " + str(data[i][0]) + " > /dev/null 2>&1 & ",  shell=True)
+        process = subprocess.call("python ~/Documents/sailfin/python/bittrex/watch.py " + "-p " + str(data[i][0]) + " > /dev/null 2>&1 & ",  shell=True)
     
     
 except MySQLdb.Error as error:

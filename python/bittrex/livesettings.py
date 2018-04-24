@@ -11,9 +11,9 @@ getcontext().prec = 8
 
 #LIVE DB#
 DB_NAME = "Bora"
-DB_HOST = "138.197.194.3"
-DB_PW = "5AKC08noMTwx9lG2"
-DB_USER = "dev"
+DB_HOST = "localhost"
+DB_PW = "Amm02o16!"
+DB_USER = "root"
 
 APIVER = 'v1.1'
 
