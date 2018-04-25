@@ -302,13 +302,12 @@ class MyPair(object):
       
             
         
-    def GetRating(self):
+    def GetRating(self,conn):
         
         
         self.momentum = GetMomentum(self.data)    
         
         #Get a,b,c,d,e,f from database
-        conn = MySQLdb.connect(DB_HOST,DB_USER,DB_PW,DB_NAME)
         cursor = conn.cursor()
     
         query = "SELECT * FROM Config WHERE PAIR = '%s'" % (self.pairName)
@@ -326,7 +325,6 @@ class MyPair(object):
         
         except MySQLdb.Error as error:
             print(error)
-            conn.close()
             
         
         self.fib = GetFib(self.current['C'], a, b, c, d, e, f)
@@ -335,7 +333,7 @@ class MyPair(object):
         print(self.rating)
         
     
-    def UploadData(self,pid):
+    def UploadData(self,pid,conn):
     
         """
         Insert self.rating into Rating 
@@ -346,9 +344,8 @@ class MyPair(object):
 
         """
 
-        conn = MySQLdb.connect(DB_HOST,DB_USER,DB_PW,DB_NAME)
+
         cursor = conn.cursor()
-        
         query = "UPDATE Pairs SET Rating = %d, TradeSignal = %d, PID = %d WHERE Pair = '%s'" % (self.rating,self.signal,pid,self.pairName)
     
         try:
@@ -358,10 +355,9 @@ class MyPair(object):
         except MySQLdb.Error as error:
             print(error)
             conn.rollback()
+            conn.close()
  
       
-        conn.close()
-     
 
 
 
@@ -374,6 +370,24 @@ pid = os.getpid()  ##Get process pid
 
 print("pid is: %d" % pid)
 
+
+##Write PID to Database
+
+conn = MySQLdb.connect(DB_HOST,DB_USER,DB_PW,DB_NAME)
+
+cursor = conn.cursor()
+query = "UPDATE Pairs SET PID = %d WHERE Pair = '%s'" % (pid,entry.pair)
+
+try:
+    cursor.execute(query)
+    conn.commit()
+    
+except MySQLdb.Error as error:
+    print(error)
+    conn.rollback()
+    conn.close()
+    
+
 while True:  ##Forever loop 
 
     pair = MyPair(entry)
@@ -383,8 +397,8 @@ while True:  ##Forever loop
     
     pair.GetTrend()
     pair.GetSignal()
-    pair.GetRating()
-    pair.UploadData(pid)
+    pair.GetRating(conn)
+    pair.UploadData(pid,conn)
 
 
 

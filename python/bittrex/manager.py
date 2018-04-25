@@ -5,7 +5,7 @@ import os
 import time
 import MySQLdb
 import subprocess
-
+import psutil
 from settings import *
 
 
@@ -133,10 +133,32 @@ class Account(object):
         print("Total BTC is: %.9f" % self.TotalBTCBalance)
         
         
-    
-    
+    def CheckProcess(self,pair,conn):
+        
+        cursor = conn.cursor()
+        query = "SELECT PID from Pairs WHERE Pair = '%s'" % (pair)
+        
+        try:
+            
+            cursor.execute (query)
+            data = cursor.fetchone() #find PID for PAIR
+            
+            #check if pid is running
+            if psutil.pid_exists(data[0]):
+                print("process watching %s is still running with pid %d" % (pair, data[0]))
+            else:
+                print("re-running process for this signal %s" % (pair))
+                process = subprocess.call("python ~/bora_local/python/bittrex/watch.py " + "-p " + pair + " > /dev/null 2>&1 & ",  shell=True)
+         
+            
+        except MySQLdb.Error as error:
+            print(error)
+            conn.close()
+            
+       
+                
 
-
+    
 ##program start here
 
 #entry = GetEntry() ##Get arguments to define Pair and Fib levels
@@ -163,7 +185,7 @@ try:
         print("watching %s " % str(data[i][0]))
         ListofPairs.append(str(data[i][0]))
         ListofCurrencies.append(str(data[i][7]))
-        process = subprocess.call("python ~/Documents/sailfin/python/bittrex/watch.py " + "-p " + str(data[i][0]) + " > /dev/null 2>&1 & ",  shell=True)
+        process = subprocess.call("python ~/bora_local/python/bittrex/watch.py " + "-p " + str(data[i][0]) + " > /dev/null 2>&1 & ",  shell=True)
     
     
 except MySQLdb.Error as error:
@@ -176,13 +198,16 @@ except MySQLdb.Error as error:
 
 while True:
     
+    time.sleep(60)
+    
     print("getting balances")
     
     for i in range(len(ListofPairs)):
         PersonalAccount.GetCurrencyBalance(ListofCurrencies[i], ListofPairs[i], conn)
+        ##check for process if its still running 
+        PersonalAccount.CheckProcess(ListofPairs[i],conn)
     
     PersonalAccount.GetTotalBalance();   
 
-    time.sleep(60)
-
+   
 
