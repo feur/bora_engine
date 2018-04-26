@@ -87,8 +87,9 @@ class Account(object):
             
             if (data['success'] == True and data['result']):
                 result = data['result']
-                holdingBTC = holding * result[0]['C']
-                break
+                if result[0]['C']:
+                    holdingBTC = holding * result[0]['C']
+                    break
 
         
         print("balance for %s is: %.9f in btc %.9f" % (currency,holding,holdingBTC))
