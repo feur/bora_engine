@@ -55,8 +55,8 @@ def GetEntry():
  """"
 Simple Logic: 
 
-if 0.05 btc is available (GetBTCBalance = 0.05) 
-    Go to Buy Function
+Sort Pairs out by Signal
+    if Hold 
     
 
 Buy function: 

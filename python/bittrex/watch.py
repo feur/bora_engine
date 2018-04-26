@@ -276,25 +276,36 @@ class MyPair(object):
         
         #find incloud
         
-        if ((self.senkouA[0] > self.senkouB[0]) and (self.current['C'] < self.senkouA[0])):
-            self.InCloud = 1
-        elif ((self.senkouB[0] > self.senkouA[0]) and (self.current['C'] < self.senkouB[0])):
-            self.InCloud = 1
-        else:
+        if ((self.current['C'] < self.senkouA[0]) and (self.current['C'] < self.senkouB[0])):
             self.InCloud = 0
+        elif ((self.current['C'] > self.senkouA[0]) and (self.current['C'] > self.senkouB[0])):
+            self.InCloud = 2    
+        else:
+            self.InCloud = 1
+            
+        print(self.InCloud)
                     
       #  print("cloud: %d"% self.InCloud)
-        
-        if self.crossover == 0 or self.trend == 1:
-            self.signal = 2 #no signal
-        elif self.trend == 0 and self.InCloud == 0 and self.crossover == 1:
-            self.signal = 0 #strong sell
-        elif self.trend == 0 and self.InCloud == 1 and self.crossover == 1:
-            self.signal = 1 #weak sell    
-        elif self.trend == 2 and self.InCloud == 1 and self.crossover == 1:
-            self.signal = 3 #weak buy
-        elif self.trend == 2 and self.InCloud == 0 and self.crossover == 1:
-            self.signal = 4 #strong buy
+                    
+        if self.trend == 1 or self.crossover == 0:  ##no trend or no crossover 
+            self.signal = 2 ##no buy or sell signal
+        elif self.InCloud == 0:
+            if self.crossover and self.trend ==  0:   ##crossover happened with downtrend under the cloud
+                self.signal = 0 ##strong sell signal 
+            if self.crossover and self.trend == 2:    ##crossover happeend with uptrend under the cloud
+                self.signal = 3 ##weak buy signal
+        elif self.InCloud == 1:
+            if self.crossover and self.trend ==  0:   ##crossover happened with downtrend under the cloud
+                self.signal = 1 ##weak sell signal 
+            if self.crossover and self.trend == 2:    ##crossover happeend with uptrend under the cloud
+                self.signal = 3 ##weak buy signal
+        elif self.InCloud == 1:
+            if self.crossover and self.trend ==  0:   ##crossover happened with downtrend under the cloud
+                self.signal = 3 ##weak sell signal 
+            if self.crossover and self.trend == 2:    ##crossover happeend with uptrend under the cloud
+                self.signal = 4 ##strong buy signal
+        else:
+            self.signal = 2 #no buy or sell signal
        
             
         print("signal: %d"% self.signal)    
