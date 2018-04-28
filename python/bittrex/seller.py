@@ -5,8 +5,7 @@ import os
 import time
 import MySQLdb
 import subprocess
-
-#from settings import *
+from settings import *
 
 
 
@@ -52,51 +51,58 @@ def GetEntry():
  
  
  
- """"
+"""
 Simple Logic: 
 
-Sort Pairs out by Signal
-    if Hold 
-    
+1. Sort out the Pairs table by Signal
+2. Filter out: 
+ - If Pair has signal of 0, check Holding
+     - If holding > 0.01 BTC set sell order 
+         - Keep checking sell order until complete
+    - else If holding < 0.01 BTC thenno sell order
+ - If Pair has signal of > 0 then stop 
+"""
 
-Buy function: 
-- Sort Pairs by rating 
-- Find the first Pair with a signal of 4 
-- Buy that pair at 0.05 btc
-- Check buy order until its completed
-- if completed return to origin. 
- 
- 
- """"
- 
  
 class Account(object): 
     
     def __init__(self):
         
-            self.account = Bittrex("f5d8f6b8b21c44548d2799044d3105f0", "b3845ea35176403bb530a31fd4481165", api_version=API_V2_0)
+        self.account = Bittrex("f5d8f6b8b21c44548d2799044d3105f0", "b3845ea35176403bb530a31fd4481165", api_version=API_V2_0)
+            
+    def SellPair(self, pair, amount):   
+        
+        ##get pair and amount to sell
+        ##check orderbook and complete sell order 
+        
+        print("selling %s at amount %.9f" % (pair, amount))
+        
+        while True:
+            data = self.account.get_orderbook(pair, depth_type=BOTH_ORDERBOOK)
+            
+            if (data['success'] == True):
+                result = data['result']['buy']
+                SellPrice = float(result[1]['Rate'])
+                print("selling %d at %.9f" % (amount, SellPrice))
+                
+                data = self.account.sell_limit(pair, amount, SellPrice) ##now placing sell order
+                if (data['success'] == True):
+                    print("sell Order in place")
+                    break
+            
+            
+            
             
     def GetBTCAvailable(self):
     
     #First get available BTC
-    while True:
-        data = self.account.get_balance('BTC')
-        
-        if (data['success'] == True):
-            result = data['result']
-            self.BTCAvailable = result['Balance']
-            break
+        while True:
+            data = self.account.get_balance('BTC')
             
-        
-
-    def Buypair(self):
-        
-    ##First sort out Pairs table by rating 
-        
-        
-        
-        buy_limit(self, market, quantity, rate):
-           
+            if (data['success'] == True):
+                result = data['result']
+                self.BTCAvailable = result['Balance']
+                break
             
     def GetCurrencyBalance(self, currency, pair, conn):
         
@@ -186,42 +192,31 @@ ListofCurrencies= [] ##list of Currencies e.g. ADA, OMG
 
 print("pid is: %d" % pid)
 
-conn = MySQLdb.connect("localhost","root","asdfqwer1","Bora")
+conn = MySQLdb.connect(DB_HOST,DB_USER,DB_PW,DB_NAME)
 
 cursor = conn.cursor()
 
 PersonalAccount = Account()
 
 
-            
-try:
-    cursor.execute ("SELECT * from Config")
-    data = cursor.fetchall()
     
-    
-    for i in range(len(data)):
-        print("watching %s " % str(data[i][0]))
-        ListofPairs.append(str(data[i][0]))
-        ListofCurrencies.append(str(data[i][7]))
-        process = subprocess.call("python ~/Documents/sailfin/python/bittrex/main.py " + "-p " + str(data[i][0]) + " > /dev/null 2>&1 & ",  shell=True)
-    
-    
-except MySQLdb.Error as error:
-    print(error)
-    conn.close()
-    
-
-#while True: 
-    #print("balance is: ")
-
 while True:
     
-    print("getting balances")
+    try:
+        cursor.execute ("SELECT Pair, TradeSignal, Hold, HoldBTC FROM `Pairs` ORDER BY TradeSignal ASC") ##getting a list of Pairs ordered by their signals to work out which one to sell 
+        data = cursor.fetchall() 
     
-    for i in range(len(ListofPairs)):
-        PersonalAccount.GetCurrencyBalance(ListofCurrencies[i], ListofPairs[i], conn)
+        ##now filter out the list
+        for i in range(len(data)):
+            print("Pair %s has a signal of %d" % (str(data[i][0]), data[i][1]))
+            if data[i][1] == 0 and float(data[i][3]) > 0.01 : ##sell signal and has enough to sell 
+                PersonalAccount.SellPair(str(data[i][0]), float(data[i][2])) 
+        
+        
+    except MySQLdb.Error as error:
+        print(error)
+        conn.close()
     
-    PersonalAccount.GetTotalBalance();   
 
     time.sleep(60)
 
