@@ -10,47 +10,6 @@ from settings import *
 
 
 
-def GetEntry():
-    parser = argparse.ArgumentParser(description='Process TA for pair')
-    parser.add_argument('-p', '--pair',
-                        action='store',  # tell to store a value
-                        dest='pair',  # use `paor` to access value
-                        help='The Pair to be watched')
-    parser.add_argument('-a', '--high1',
-                        type=float,
-                        action='store',  # tell to store a value
-                        dest='a',  # use `a` to access value
-                        help='fib zone 1')
-    parser.add_argument('-b', '--low1',
-                        type=float,
-                        action='store',  # tell to store a value
-                        dest='b',  # use `d` to access value
-                        help='fib zone 1')
-    parser.add_argument('-c', '--high2',
-                        type=float,
-                        action='store',  # tell to store a value
-                        dest='c',  # use `b` to access value
-                        help='fib zone 2')
-    parser.add_argument('-d', '--low2',
-                        type=float,
-                        action='store',  # tell to store a value
-                        dest='d',  # use `c` to access value
-                        help='fib zone 2')
-    parser.add_argument('-e', '--high3',
-                        type=float,
-                        action='store',  # tell to store a value
-                        dest='e',  # use `e` to access value
-                        help='fib zone 3')
-    parser.add_argument('-f', '--Low3',
-                        type=float,
-                        action='store',  # tell to store a value
-                        dest='f',  # use `e` to access value
-                        help='fib zone 3')
-    pair = parser.parse_args()
-    return pair
-    
- 
-
 class Account(object): 
     
     def __init__(self):
@@ -87,9 +46,9 @@ class Account(object):
             
             if (data['success'] == True and data['result']):
                 result = data['result']
-                if result[0]['C']:
-                    holdingBTC = holding * result[0]['C']
-                    break
+                print(result)
+                holdingBTC = holding * result[0]['C']
+            break
 
         
         print("balance for %s is: %.9f in btc %.9f" % (currency,holding,holdingBTC))
@@ -186,7 +145,7 @@ try:
         print("watching %s " % str(data[i][0]))
         ListofPairs.append(str(data[i][0]))
         ListofCurrencies.append(str(data[i][7]))
-        process = subprocess.call("python ~/bora_local/python/bittrex/watch.py " + "-p " + str(data[i][0]) + " > /dev/null 2>&1 & ",  shell=True)
+       
     
     
 except MySQLdb.Error as error:
