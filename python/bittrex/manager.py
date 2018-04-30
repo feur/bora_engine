@@ -34,7 +34,7 @@ class Account(object):
         while True:
             data = self.account.get_balance(currency)
             
-            if (data['success'] == True and data['result'] ):
+            if (data['success'] == True and data['result'] != None):
                 result = data['result']
                 holding = result['Balance']
                 break
@@ -44,9 +44,9 @@ class Account(object):
         while True:
             data = self.account.get_latest_candle(pair, tick_interval=TICKINTERVAL_ONEMIN)
             
-            if (data['success'] == True and data['result']):
+            if (data['success'] == True and data['result'] != None):
                 result = data['result']
-                print(result)
+                #print(result)
                 holdingBTC = holding * result[0]['C']
             break
 
@@ -74,7 +74,7 @@ class Account(object):
         while True:
             data = self.account.get_balance('BTC')
             
-            if (data['success'] == True and data['result']):
+            if (data['success'] == True and data['result'] != None):
                 result = data['result']
                 self.RemainingBTC = result['Balance']
                 break
