@@ -3,6 +3,7 @@ import argparse
 from statistics import mean
 import os
 import time
+import datetime
 import MySQLdb
 import subprocess
 import psutil
@@ -118,7 +119,38 @@ class Account(object):
             print(error)
             conn.close()
             
-       
+            
+    def LogAccountBalance(self,pid,conn):
+        
+        print("logging account now..")
+        
+        ##get Balance in USD
+        while True:
+            data = self.account.get_latest_candle("USDT-BTC", tick_interval=TICKINTERVAL_ONEMIN)
+            
+            if (data['success'] == True and data['result'] != None):
+                result = data['result']
+                print(result)
+                self.TotalUSDBalance = self.TotalBTCBalance * result[0]['C']
+            break
+        
+        
+        ts = time.time()
+        timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+        
+        x = conn.cursor()
+
+        try:
+            x.execute("""INSERT INTO `AccountBalance`(`PID`, `BTC`, `USD`, `DateTime`) VALUES (%d,%.9f,%.9f,%s)""",(pid,self.TotalBTCBalance,self.TotalUSDBalance,timestamp))
+            conn.commit()
+            
+        except MySQLdb.Error as error:
+            print(error)
+            conn.rollback()
+            conn.close()
+     
+   
+
                 
 
     
@@ -160,17 +192,16 @@ except MySQLdb.Error as error:
     #print("balance is: ")
 
 while True:
-    
-    time.sleep(60)
-    
+     
     print("getting balances")
-    
+
     for i in range(len(ListofPairs)):
         PersonalAccount.GetCurrencyBalance(ListofCurrencies[i], ListofPairs[i], conn)
-        ##check for process if its still running 
-        PersonalAccount.CheckProcess(ListofPairs[i],conn)
+        PersonalAccount.CheckProcess(ListofPairs[i],conn) ##check if pair is being watched still
     
-    PersonalAccount.GetTotalBalance();   
+    PersonalAccount.GetTotalBalance()
+    PersonalAccount.LogAccountBalance(pid,conn)
+    
+    time.sleep(60)
 
-   
-
+  
