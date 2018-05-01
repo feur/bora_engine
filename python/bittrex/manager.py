@@ -31,6 +31,9 @@ class Account(object):
             
         """
         ##Get Holdings
+    
+        print("watching Currency: %s for pair: %s " % (currency,pair))    
+        
         while True:
             data = self.account.get_balance(currency)
             
@@ -46,7 +49,7 @@ class Account(object):
             
             if (data['success'] == True and data['result'] != None):
                 result = data['result']
-                #print(result)
+                print(result)
                 holdingBTC = holding * result[0]['C']
             break
 
@@ -142,7 +145,7 @@ try:
     
     
     for i in range(len(data)):
-        print("watching %s " % str(data[i][0]))
+        #print("watching %s " % str(data[i][0]))
         ListofPairs.append(str(data[i][0]))
         ListofCurrencies.append(str(data[i][7]))
        
