@@ -15,9 +15,9 @@ class Account(object):
     
     def __init__(self):
         
-            self.account = Bittrex("f5d8f6b8b21c44548d2799044d3105f0", "b3845ea35176403bb530a31fd4481165", api_version=API_V2_0)
-           
+        self.account = Bittrex("f5d8f6b8b21c44548d2799044d3105f0", "b3845ea35176403bb530a31fd4481165", api_version=API_V2_0)
             
+
     def GetCurrencyBalance(self, currency, pair, conn):
         
         """
@@ -48,11 +48,11 @@ class Account(object):
         while True:
             data = self.account.get_latest_candle(pair, tick_interval=TICKINTERVAL_ONEMIN)
             
-            if (data['success'] == True and data['result'] != None):
+            if (data['success'] == True):
                 result = data['result']
-                print(result)
-                holdingBTC = holding * result[0]['C']
-            break
+                if (result[0]['C'] != None):
+                    holdingBTC = holding * result[0]['C']
+                    break
 
         
         print("balance for %s is: %.9f in btc %.9f" % (currency,holding,holdingBTC))
@@ -130,7 +130,6 @@ class Account(object):
             
             if (data['success'] == True and data['result'] != None):
                 result = data['result']
-                print(result)
                 self.TotalUSDBalance = self.TotalBTCBalance * result[0]['C']
             break
         
@@ -138,10 +137,11 @@ class Account(object):
         ts = time.time()
         timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
         
-        x = conn.cursor()
+        cursor = conn.cursor()
+        query = "INSERT INTO `AccountBalance`(`PID`, `BTC`, `USD`, `DateTime`) VALUES (%d,%.9f,%.9f,'%s')" % (pid,self.TotalBTCBalance,self.TotalUSDBalance,timestamp)
 
         try:
-            x.execute("""INSERT INTO `AccountBalance`(`PID`, `BTC`, `USD`, `DateTime`) VALUES (%d,%.9f,%.9f,%s)""",(pid,self.TotalBTCBalance,self.TotalUSDBalance,timestamp))
+            cursor.execute(query)
             conn.commit()
             
         except MySQLdb.Error as error:
@@ -170,6 +170,26 @@ cursor = conn.cursor()
 PersonalAccount = Account()
 
 
+
+##insert PID into Database
+query = "UPDATE `Components` SET `PID`=%d WHERE Unit='manager'" % (pid)
+
+try:
+    cursor.execute (query)
+    conn.commit()
+    
+except MySQLdb.Error as error:
+    print(error)
+    conn.rollback()
+    conn.close()
+     
+    
+    
+    
+    
+    
+##get a list of all Pairs in database    
+
             
 try:
     cursor.execute ("SELECT * from Config")
@@ -177,7 +197,6 @@ try:
     
     
     for i in range(len(data)):
-        #print("watching %s " % str(data[i][0]))
         ListofPairs.append(str(data[i][0]))
         ListofCurrencies.append(str(data[i][7]))
        

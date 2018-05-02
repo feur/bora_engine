@@ -10,34 +10,28 @@ from settings import *
 
 
             
-def GetPID(conn,component):
+def StartAllUnits():
     
+    conn = MySQLdb.connect(DB_HOST,DB_USER,DB_PW,DB_NAME) ##connect to DB
     cursor = conn.cursor()
-        
-    if (component == "manager"):     
-        query = "SELECT PID from Pairs WHERE Pair = '%s'" 
-    elif (componetn == "buyer"):
-        query = "SELECT PID from Pairs WHERE Pair = '%s'"   
-    elif (componetn == "seller"):
-        query = "SELECT PID from Pairs WHERE Pair = '%s'"  
-        
-    try:
-        
-        cursor.execute (query)
-        data = cursor.fetchone() #find PID for PAIR
+    
+    try:       
+        cursor.execute ("SELECT * FROM `Components` WHERE 1")
+        data = cursor.fetchall() #find PID for Unit
         
         #check if pid is running
-        if psutil.pid_exists(data[0]):
-            print("process %s is still running with pid %d" % (component, data[0]))
-        else:
-            print("re-running process for this component %s" % (component))
-            process = subprocess.call("python ~/bora_local/python/bittrex/" + component + ".py > /dev/null 2>&1 & ",  shell=True)
-    
+        for i in range (len(data)):
+            
+            if psutil.pid_exists(data[i][1]):
+                print("process %s is still running with pid %d" % (data[i][0], data[i][1]))
+            else:
+                    print("re-running process for this component %s" % (data[i][0]))
+                    process = subprocess.call("python ~/bora_local/python/bittrex/" + data[i][0] + ".py > /dev/null 2>&1 & ",  shell=True)
+              
     except MySQLdb.Error as error:
         print(error)
         conn.close()   
         
-    return 1    
                 
 
     
@@ -46,14 +40,15 @@ def GetPID(conn,component):
 pid = os.getpid()               ##Get process pid
 print("pid is: %d" % pid)
 
-conn = MySQLdb.connect(DB_HOST,DB_USER,DB_PW,DB_NAME) ##connect to DB
 
-cursor = conn.cursor()
+while True: 
+    
+    StartAllUnits()
+    time.sleep(10)
+    
+   
 
-result = GetPID(conn,"manager") ##Check if Manager is running, if not re-run manager
-result = GetPID(conn,"manager") ##Check if buyer is running, if not re-run buyer
-result = GetPID(conn,"seller") ##Check if seller is running, if not re-run seller    
-
+    
 
 
 

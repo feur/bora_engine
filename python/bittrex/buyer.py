@@ -69,8 +69,10 @@ class Account(object):
             
             if (data['success'] == True):
                 result = data['result']
-                self.BTCAvailable = result['Balance']
+                self.BTCAvailable = float(result['Balance'])
                 break
+        
+        print("BTC balance: %.9f" % self.BTCAvailable)
             
  
     
@@ -101,6 +103,23 @@ cursor = conn.cursor()
 PersonalAccount = Account()
 
 
+##insert PID into Database
+query = "UPDATE `Components` SET `PID`=%d WHERE Unit='buyer'" % (pid)
+
+try:
+    cursor.execute (query)
+    conn.commit()
+    
+except MySQLdb.Error as error:
+    print(error)
+    conn.rollback()
+    conn.close()
+     
+    
+    
+    
+
+
 while True:
     
     ## Check BTC Balance 
@@ -117,6 +136,8 @@ while True:
                 if data[i][1] == 4  and float(data[i][3]) < 0.01 and PersonalAccount.BTCAvailable >= 0.25 : ##buy signal and nothing has been bought in yet and theres enough balance still
                     PersonalAccount.BuyPair(str(data[i][0]))  #buy pair
                     PersonalAccount.BTCAvailable = PersonalAccount.BTCAvailable - 0.25
+                else:
+                    print("Nothing to buy")
         
         except MySQLdb.Error as error:
             print(error)
