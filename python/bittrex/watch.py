@@ -299,7 +299,7 @@ class MyPair(object):
                 self.signal = 1 ##weak sell signal 
             if self.crossover and self.trend == 2:    ##crossover happeend with uptrend under the cloud
                 self.signal = 3 ##weak buy signal
-        elif self.InCloud == 1:
+        elif self.InCloud == 2:
             if self.crossover and self.trend ==  0:   ##crossover happened with downtrend under the cloud
                 self.signal = 3 ##weak sell signal 
             if self.crossover and self.trend == 2:    ##crossover happeend with uptrend under the cloud
