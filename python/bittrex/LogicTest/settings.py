@@ -10,7 +10,7 @@ getcontext().prec = 8
 #DB_USER = "root"
 
 #LIVE DB#
-DB_NAME = "Bora_Test"
+DB_NAME = "Bora"
 DB_HOST = "138.197.194.3"
 DB_PW = "5AKC08noMTwx9lG2"
 DB_USER = "dev"

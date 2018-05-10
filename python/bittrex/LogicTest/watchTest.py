@@ -28,12 +28,6 @@ class MyPair(object):
             {u'C': 3.079e-05, u'H': 3.079e-05, u'L': 3.079e-05, u'O': 3.079e-05, u'BV': 0.04902765, u'T': u'2018-04-13T07:10:00', u'V': 1592.32422805}
             """
             
-        ##init some arrays
-            
-        self.EMA = [0,0,0,0]  ##55,21,13,8
-     
-        
-            
         while True:  
             account = Bittrex("f5d8f6b8b21c44548d2799044d3105f0", "b3845ea35176403bb530a31fd4481165", api_version=API_V2_0)
             data = account.get_candles(entry.pair, tick_interval=TICKINTERVAL_HOUR)
@@ -47,7 +41,7 @@ class MyPair(object):
             
             
     
-    def GetTrend(self,conn):
+    def GetTrend(self):
         """
         
         1. Get Di+ (self.diPos)
@@ -64,47 +58,9 @@ class MyPair(object):
             1. Get TrMax --> self.trMax
             2. Get dmPosMax --> self.dmPosMax
             3. self.diPos[i] = (self.dmPosMax[i] / self.trMax[i]) * 100
-            
-             if (self.EMA[0] == 0):
-
-            cursor = conn.cursor()
-            
-            query = "SELECT * FROM Pairs WHERE PAIR = '%s'" % (self.pairName)
-        
-            try:
-                cursor.execute (query)
-                data = cursor.fetchone()
-                
-                self.EMA[0] = float(data[2]) ##Previous EMA55
-                self.EMA[1]= float(data[3])  ##previous EMA21
-                self.EMA[2] = float(data[4]) ##previous EMA13
-                self.EMA[3] = float(data[5]) ##previous EMA8
-            
-            except MySQLdb.Error as error:
-                print(error)
-           
     
         """
-        
-        ###Get EMA Trend first
-        
-        self.EMA[0] = GetEMA(self.data, 55, self.EMA[0])  ##Get EMA55
-        self.EMA[1] = GetEMA(self.data, 21, self.EMA[1])  ##Get EMA21
-        self.EMA[2] = GetEMA(self.data, 13, self.EMA[2]) ##Get EMA13
-        self.EMA[3] = GetEMA(self.data, 8, self.EMA[3]) ##Get EMA8
-        
-        print("EMA55 is (%.9f) EMA21 is (%.9f) EMA13 is (%.9f) EMA8 (%.9f)" % (self.EMA[0], self.EMA[1], self.EMA[2], self.EMA[3]))        
-        
-        if (self.EMA[0] == max(self.EMA)):  ##work out if EMA55 is on top 
-            self.EMATrend = 1
-        else:
-            self.EMATrend = 2 
-            
-        print("EMA Trend is: %d" % self.EMATrend)
-        
-
-        ###Get di+ & di- Trend
-        
+               
         self.diPos=[]
         self.diNeg=[]
         self.tr=[]
@@ -113,7 +69,7 @@ class MyPair(object):
         self.dmNeg=[]
         self.dmPosMax=[]
         self.dmNegMax=[]
-     
+        
         
         #calculate TR, dmPos, dmNeg
         tr=[]
@@ -170,24 +126,19 @@ class MyPair(object):
             self.diPos.append((self.dmPosMax[i] / self.trMax[i]) * 100)
             self.diNeg.append((self.dmNegMax[i] / self.trMax[i]) * 100)
             
-        
-        if (self.diNeg[-1] > 20 and self.diPos[-1] > 20): ## both trends are significatn
-            
-            if (self.diNeg[-1] > self.diPos[-1]): ##Downtrend
-                self.Direction = 0 
-            elif (self.diNeg[-1] == self.diPos[-1]): ##possible crossover
-                self.Direction = 1
-            else:
-                self.Direction = 2 ##uptrend 
-                
-        else:
-            self.Direction = 1 ##no determined direction
               
+        if (self.diNeg[-1] > 20) and (self.diNeg[-1] > self.diPos[-1]):
+            self.trend = 0 #down trend
+        elif (self.diNeg[-1] < 20) and (self.diPos[-1] < 20):
+            self.trend = 1  #no trend
+        elif (self.diPos[-1] > 20) and (self.diPos[-1] > self.diNeg[-1]):
+            self.trend = 2 #up trend
+            
            
-        print("Direction is: %d" % self.Direction)   
+    #    print("Trend: %d" % self.trend)   
       
 
-    def GetSignal(self,conn):
+    def GetSignal(self):
         
         """
         
@@ -307,49 +258,59 @@ class MyPair(object):
             self.senkouA.append((self.tenkanSen[x] + self.kijunSen[x])/ 2)
             
             
-        # print("red at: %.9f" % self.tenkanSen[0])  
-        # print("blue at: %.9f" % self.kijunSen[0])  
-            
-        #find state of Tenkansen & Kijunsen as IchState
-        if (self.tenkanSen[0] > self.kijunSen[0]): ##red on top of blue
-            self.IchState = 2
-        else:
-            self.IchState = 1
-    
-        #find previous state of TenkanSen & KijunSen to find Crossover
-            
-        cursor = conn.cursor()
-            
-        query = "SELECT * FROM `Pairs` WHERE PAIR = '%s'" % (self.pairName)
+        print("red at: %.9f" % self.tenkanSen[0])  
+        print("blue at: %.9f" % self.kijunSen[0])  
+        print("red before at: %.9f" % self.tenkanSen[1])  
+        print("blue before at: %.9f" % self.kijunSen[1]) 
         
-        try:
-            cursor.execute (query)
-            data = cursor.fetchone()
-                
-            IchPrevState = data[6] ##prev IchState 
-            
-        except MySQLdb.Error as error:
-            print(error)
-                 
-        print("IchState: %d" % (self.IchState) )  
-        
-        if (IchPrevState >= 0 and self.IchState != IchPrevState):  ##IchPrevState was previoulsy recorded 
+        #find crossover 
+        if (self.tenkanSen[1] > self.kijunSen[1]) and (self.tenkanSen[0] < self.kijunSen[0]):
             self.crossover = 1
-        else: 
+        elif (self.tenkanSen[1] < self.kijunSen[1]) and (self.tenkanSen[0] > self.kijunSen[0]):
+            self.crossover = 1    
+        elif (self.tenkanSen[0] == self.kijunSen[0]): 
+            self.crossover = 1 
+        else:
             self.crossover = 0
             
-            
-        print("crossover: %d" % self.crossover)    
+     #   print("crossover: %d" % self.crossover)    
         
         
-        ##signal is now represented by its strength 
-       ## self.signal = ( self.EMATrend + self.crossover ) * self.Direction   ##amplified by confidence of Direction, 
-        if (self.crossover):  #signal has occured        
-            self.signal = (self.EMATrend * self.IchState) + self.Direction
+        #find incloud
+        
+        if ((self.current['C'] < self.senkouA[0]) and (self.current['C'] < self.senkouB[0])):
+            self.InCloud = 0
+        elif ((self.current['C'] > self.senkouA[0]) and (self.current['C'] > self.senkouB[0])):
+            self.InCloud = 2    
         else:
-            self.signal = 0 ## no signal 
-    
-        print("Signal: %d"% self.signal)
+            self.InCloud = 1
+            
+        print(self.InCloud)
+                    
+      #  print("cloud: %d"% self.InCloud)
+                    
+        if self.trend == 1 or self.crossover == 0:  ##no trend or no crossover 
+            self.signal = 2 ##no buy or sell signal
+        elif self.InCloud == 0:
+            if self.crossover and self.trend ==  0:   ##crossover happened with downtrend under the cloud
+                self.signal = 0 ##strong sell signal 
+            if self.crossover and self.trend == 2:    ##crossover happeend with uptrend under the cloud
+                self.signal = 3 ##weak buy signal
+        elif self.InCloud == 1:
+            if self.crossover and self.trend ==  0:   ##crossover happened with downtrend in the cloud
+                self.signal = 1 ##weak sell signal 
+            if self.crossover and self.trend == 2:    ##crossover happeend with uptrend in the cloud
+                self.signal = 3 ##weak buy signal
+        elif self.InCloud == 2:
+            if self.crossover and self.trend ==  0:   ##crossover happened with downtrend above the cloud
+                self.signal = 3 ##weak sell signal 
+            if self.crossover and self.trend == 2:    ##crossover happeend with uptrend above the cloud
+                self.signal = 4 ##strong buy signal
+        else:
+            self.signal = 2 #no buy or sell signal
+       
+            
+        print("signal: %d"% self.signal)    
                 
       
             
@@ -380,7 +341,7 @@ class MyPair(object):
             
         
         self.fib = GetFib(self.current['C'], a, b, c, d, e, f)
-        self.rating = self.fib * self.momentum
+        self.rating = self.fib * (self.diPos[-1] + self.diNeg[-1]) * self.momentum
         
         print(self.rating)
         
@@ -398,8 +359,8 @@ class MyPair(object):
 
 
         cursor = conn.cursor()
-        query = "UPDATE Pairs SET Rating = %d,`EMA55`=%.9f,`EMA21`=%.9f,`EMA13`=%.9f,`EMA8`=%.9f,`IchState`=%.9f, TradeSignal = %d, PID = %d WHERE Pair = '%s'" % (self.rating,self.EMA[0],self.EMA[1],self.EMA[2],self.EMA[3],self.IchState,self.signal,pid,self.pairName)
-
+        query = "UPDATE Pairs SET Rating = %d, TradeSignal = %d, PID = %d WHERE Pair = '%s'" % (self.rating,self.signal,pid,self.pairName)
+    
         try:
             cursor.execute(query)
             conn.commit()
@@ -428,7 +389,7 @@ print("pid is: %d" % pid)
 conn = MySQLdb.connect(DB_HOST,DB_USER,DB_PW,DB_NAME)
 
 cursor = conn.cursor()
-query = "UPDATE Pairs SET `IchState`= NULL, PID = %d WHERE Pair = '%s'" % (pid,entry.pair) ##Null IchState, put in PID and entry pair
+query = "UPDATE Pairs SET PID = %d WHERE Pair = '%s'" % (pid,entry.pair)
 
 try:
     cursor.execute(query)
@@ -447,10 +408,10 @@ while True:  ##Forever loop
     print("current price is: %.9f" % pair.current['C'])
     
     
-    pair.GetTrend(conn)
-    pair.GetSignal(conn)
+    pair.GetTrend()
+    pair.GetSignal()
     pair.GetRating(conn)
-    pair.UploadData(pid,conn)
+    #pair.UploadData(pid,conn)
 
 
 

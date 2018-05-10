@@ -133,9 +133,9 @@ while True:
             ##now filter out the list
             for i in range(len(data)):
                 print("Pair %s has a signal of %d" % (str(data[i][0]), data[i][1]))
-                if (data[i][1] >= 4  and float(data[i][3]) < 0.01 and PersonalAccount.BTCAvailable >= 0.05) : ##buy signal and nothing has been bought in yet and theres enough balance still
+                if data[i][1] == 4  and float(data[i][3]) < 0.01 and PersonalAccount.BTCAvailable >= 0.25 : ##buy signal and nothing has been bought in yet and theres enough balance still
                     PersonalAccount.BuyPair(str(data[i][0]))  #buy pair
-                    PersonalAccount.BTCAvailable = PersonalAccount.BTCAvailable - 0.05
+                    PersonalAccount.BTCAvailable = PersonalAccount.BTCAvailable - 0.25
                 else:
                     print("Nothing to buy")
         

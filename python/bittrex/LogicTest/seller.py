@@ -228,7 +228,7 @@ while True:
         ##now filter out the list
         for i in range(len(data)):
             print("Pair %s has a signal of %d" % (str(data[i][0]), data[i][1]))
-            if (data[i][1] <= 2 and data[i][1] != 0 and float(data[i][3]) > 0.01) : ##weakr or strong sell signal and has enough to sell 
+            if data[i][1] < 2 and float(data[i][3]) > 0.01 : ##weakr or strong sell signal and has enough to sell 
                 PersonalAccount.SellPair(str(data[i][0]), float(data[i][2])) 
         
         
