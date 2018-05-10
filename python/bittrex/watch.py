@@ -451,7 +451,8 @@ while True:  ##Forever loop
     pair.GetSignal(conn)
     pair.GetRating(conn)
     pair.UploadData(pid,conn)
-
+    
+    time.sleep(30) ## enoguh delay for an order to be complete
 
 
 
