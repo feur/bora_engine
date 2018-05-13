@@ -36,7 +36,7 @@ class MyPair(object):
             
         while True:  
             account = Bittrex("f5d8f6b8b21c44548d2799044d3105f0", "b3845ea35176403bb530a31fd4481165", api_version=API_V2_0)
-            data = account.get_candles(entry.pair, tick_interval=TICKINTERVAL_HOUR)
+            data = account.get_candles(entry.pair, tick_interval=TICKINTERVAL_FIVEMIN)
         
             if (data['success'] == True and data['result']):
                 self.pairName = entry.pair
@@ -380,7 +380,7 @@ class MyPair(object):
             
         
         self.fib = GetFib(self.current['C'], a, b, c, d, e, f)
-        self.rating = self.fib * self.momentum
+        self.rating = (1-self.fib) * self.momentum
         
         print(self.rating)
         
@@ -452,7 +452,7 @@ while True:  ##Forever loop
     pair.GetRating(conn)
     pair.UploadData(pid,conn)
     
-    time.sleep(30) ## enoguh delay for an order to be complete
+    time.sleep(1) ## enoguh delay for an order to be complete
 
 
 

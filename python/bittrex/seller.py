@@ -85,13 +85,12 @@ class Account(object):
                 SellPrice = float(result[1]['Rate'])
                 print("selling %d at %.9f" % (amount, SellPrice))
                 
-                data = self.account.sell_limit(pair, amount, SellPrice) ##now placing sell order
+                data = self.account.trade_sell(pair, ORDERTYPE_LIMIT, amount, SellPrice, TIMEINEFFECT_GOOD_TIL_CANCELLED,CONDITIONTYPE_NONE, target=0.0) ##now placing sell order
                 if (data['success'] == True):
-                    print("sell Order in place")
+                    print("Sell Order in place")
                     break
-            
-            
-            
+                
+        
             
     def GetBTCAvailable(self):
     
@@ -230,6 +229,7 @@ while True:
             print("Pair %s has a signal of %d" % (str(data[i][0]), data[i][1]))
             if (data[i][1] <= 2 and data[i][1] != 0 and float(data[i][3]) > 0.01) : ##weakr or strong sell signal and has enough to sell 
                 PersonalAccount.SellPair(str(data[i][0]), float(data[i][2])) 
+               
         
         
     except MySQLdb.Error as error:
