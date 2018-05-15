@@ -27,6 +27,7 @@ class Account(object):
     def __init__(self):
         
         self.account = Bittrex("f5d8f6b8b21c44548d2799044d3105f0", "b3845ea35176403bb530a31fd4481165", api_version=API_V2_0) ##connect to bittrex account
+        self.BuyLimit = 0.6
             
     def BuyPair(self, pair):   
         
@@ -38,7 +39,7 @@ class Account(object):
             
             if (data['success'] == True and data['result']):
                 result = data['result']
-                amount = float(0.05/result[0]['C'])
+                amount = float(self.BuyLimit/result[0]['C'])
                 break
         
         print("buying %s at amount %.9f" % (pair, amount))
@@ -116,24 +117,23 @@ except MySQLdb.Error as error:
     
     
 
-
 while True:
     
 
     ## Check BTC Balance 
     PersonalAccount.GetBTCAvailable()
-    if (PersonalAccount.BTCAvailable >= 0.05):
+    if (PersonalAccount.BTCAvailable >= self.BuyLimit):
         
         try:
-            cursor.execute ("SELECT Pair, TradeSignal, Hold, HoldBTC FROM `Pairs` ORDER BY Rating DESC") ##getting a list of Pairs ordered by their rating and signal to work out which one to buy 
+            cursor.execute ("SELECT Pair, TradeSignal, IchState, Hold, HoldBTC FROM `Pairs` ORDER BY Rating DESC") ##getting a list of Pairs ord$
             data = cursor.fetchall() 
     
             ##now filter out the list
             for i in range(len(data)):
                 print("Pair %s has a signal of %d" % (str(data[i][0]), data[i][1]))
-                if (data[i][1] == 4  and float(data[i][3]) < 0.01 and PersonalAccount.BTCAvailable >= 0.05) : ##buy signal and nothing has been bought in yet and theres enough balance still
+                if (data[i][1] == 2 and PersonalAccount.BTCAvailable >= self.BuyLimit) : ##buy signal a$
                     PersonalAccount.BuyPair(str(data[i][0]))  #buy pair
-                    PersonalAccount.BTCAvailable = PersonalAccount.BTCAvailable - 0.05
+                    PersonalAccount.BTCAvailable = PersonalAccount.BTCAvailable - self.BuyLimit
                 else:
                     print("Nothing to buy")
         
@@ -145,5 +145,10 @@ while True:
     
 
     time.sleep(60)
+
+
+
+
+
 
 

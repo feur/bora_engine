@@ -36,7 +36,7 @@ class MyPair(object):
             
         while True:  
             account = Bittrex("f5d8f6b8b21c44548d2799044d3105f0", "b3845ea35176403bb530a31fd4481165", api_version=API_V2_0)
-            data = account.get_candles(entry.pair, tick_interval=TICKINTERVAL_FIVEMIN)
+            data = account.get_candles(entry.pair, tick_interval=TICKINTERVAL_HOUR)
         
             if (data['success'] == True and data['result']):
                 self.pairName = entry.pair
@@ -96,9 +96,9 @@ class MyPair(object):
         print("EMA55 is (%.9f) EMA21 is (%.9f) EMA13 is (%.9f) EMA8 (%.9f)" % (self.EMA[0], self.EMA[1], self.EMA[2], self.EMA[3]))        
         
         if (self.EMA[0] == max(self.EMA)):  ##work out if EMA55 is on top 
-            self.EMATrend = 1
+            self.EMATrend = 0
         else:
-            self.EMATrend = 2 
+            self.EMATrend = 1 
             
         print("EMA Trend is: %d" % self.EMATrend)
         
@@ -176,9 +176,9 @@ class MyPair(object):
             if (self.diNeg[-1] > self.diPos[-1]): ##Downtrend
                 self.Direction = 0 
             elif (self.diNeg[-1] == self.diPos[-1]): ##possible crossover
-                self.Direction = 1
+                self.Direction = 0
             else:
-                self.Direction = 2 ##uptrend 
+                self.Direction = 1 ##uptrend 
                 
         else:
             self.Direction = 1 ##no determined direction
@@ -307,14 +307,14 @@ class MyPair(object):
             self.senkouA.append((self.tenkanSen[x] + self.kijunSen[x])/ 2)
             
             
-        # print("red at: %.9f" % self.tenkanSen[0])  
-        # print("blue at: %.9f" % self.kijunSen[0])  
+        print("red at: %.9f" % self.tenkanSen[0])  
+        print("blue at: %.9f" % self.kijunSen[0])  
             
         #find state of Tenkansen & Kijunsen as IchState
         if (self.tenkanSen[0] > self.kijunSen[0]): ##red on top of blue
-            self.IchState = 2
-        else:
             self.IchState = 1
+        else:
+            self.IchState = 0
     
         #find previous state of TenkanSen & KijunSen to find Crossover
             
@@ -344,10 +344,20 @@ class MyPair(object):
         
         ##signal is now represented by its strength 
        ## self.signal = ( self.EMATrend + self.crossover ) * self.Direction   ##amplified by confidence of Direction, 
-        if (self.crossover):  #signal has occured        
-            self.signal = (self.EMATrend * self.IchState) + self.Direction
+        
+        if (self.crossover == 1 and self.IchState == 1):
+            if (self.EMATrend == 1 or self.Direction == 1):
+                self.signal = 2
+            else: 
+                self.signal = 0
+        elif (self.crossover == 1 and self.IchState == 0):
+            if (self.EMATrend == 0 or self.Direction == 0 ):
+                self.signal = 1
+            else: 
+                self.signal = 0
         else:
-            self.signal = 0 ## no signal 
+            self.signal = 0 
+                
     
         print("Signal: %d"% self.signal)
                 
@@ -452,7 +462,7 @@ while True:  ##Forever loop
     pair.GetRating(conn)
     pair.UploadData(pid,conn)
     
-    time.sleep(1) ## enoguh delay for an order to be complete
+    time.sleep(300) ## enoguh delay for an order to be complete
 
 
 
