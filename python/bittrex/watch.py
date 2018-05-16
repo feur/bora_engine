@@ -587,8 +587,9 @@ class MyPair(object):
         print("buying %s at amount %.9f" % (self.pairName, amount))
         
             
-            while True: 
-                data = self.account.get_orderbook(self.pairName, depth_type=BOTH_ORDERBOOK)
+        while True: 
+            
+            data = self.account.get_orderbook(self.pairName, depth_type=BOTH_ORDERBOOK)
             
             if (data['success'] == True):
                 result = data['result']['buy']
