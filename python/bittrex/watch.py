@@ -30,7 +30,7 @@ class MyPair(object):
         self.pid = os.getpid()  ##Get process pid
         print("pid is: %d" % self.pid)
         
-        self.BuyLimit = 0.15
+        self.BuyLimit = 0.14
         self.TimeInterval = "FIVEMIN"
         
         cursor = conn.cursor()
@@ -463,7 +463,7 @@ class MyPair(object):
             data = cursor.fetchone() 
             
             if (data[1] > 0.01): ##theres some amount being held 
-                amount = float(float(data[0]) * 0.95)
+                amount = float(float(data[0]) * 0.995)
             
             print("selling %s of amount %.9f" % (self.pairName, amount))
         
@@ -471,7 +471,7 @@ class MyPair(object):
                 data = self.account.get_orderbook(self.pairName, depth_type=BOTH_ORDERBOOK) ##check orderbook and complete sell order 
             
                 if (data['success'] == True):
-                    result = data['result']['buy']
+                    result = data['result']['Buy']
                     SellPrice = float(result[1]['Rate'])
                     
                     print("selling %d at %.9f" % (amount, SellPrice))
@@ -520,9 +520,28 @@ class MyPair(object):
             
             if (data['success'] == True):
                 result = data['result']
-                self.BTCAvailable = float(result['Balance'])
+                self.BTCBalance = float(result['Balance'])
                 break
-        
+            
+        ##check total BTC in order 
+        TotalBTCInOrder = 0    
+            
+        while True:    
+            data = self.get_open_orders(self, market=None)  
+            if (data['success'] == True):
+                self.OrderBook = data['result']
+                for i in range(len(self.OrderBook)):
+                 
+                    if (self.OrderBook['OrderType'] == 'LIMIT_BUY'):  ##only count buy orders
+                        TotalBTCInOrder += float(self.OrderBook['Price'])    ## get a sum of all buy orders 
+                    
+                    if (self.OrderBook['OrderType'] == 'LIMIT_SELL' and self.OrderBook['Exchange'] == self.pairName):  ##coin is allready on sell
+                        self.BTCBalance = 0
+                        
+                break
+                    
+        self.BTCAvailable = self.BTCBalance - TotalBTCInOrder #this is to prevent multiple orders made on several coin that exceed actual balance
+             
         print("BTC balance: %.9f" % self.BTCAvailable)
         
         if (self.BTCAvailable >= self.BuyLimit):
@@ -567,14 +586,16 @@ class MyPair(object):
         
         print("buying %s at amount %.9f" % (self.pairName, amount))
         
-        while True:
-            data = self.account.get_orderbook(self.pairName, depth_type=BOTH_ORDERBOOK)
+            
+            while True: 
+                data = self.account.get_orderbook(self.pairName, depth_type=BOTH_ORDERBOOK)
             
             if (data['success'] == True):
                 result = data['result']['buy']
                 BuyPrice = float(result[1]['Rate'])
                 print("buying %.9f at %.9f" % (amount, BuyPrice))
                 
+    
                 data = self.account.trade_buy(self.pairName, ORDERTYPE_LIMIT, amount, BuyPrice, TIMEINEFFECT_GOOD_TIL_CANCELLED,CONDITIONTYPE_NONE, target=0.0) ##now placing sell order
                 if (data['success'] == True):
                     print("Buy Order in place")
@@ -594,6 +615,8 @@ class MyPair(object):
                         conn.close()
                         
                     break
+                
+                      
                 
     
 ##program start here
