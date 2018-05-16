@@ -30,7 +30,7 @@ class MyPair(object):
         self.pid = os.getpid()  ##Get process pid
         print("pid is: %d" % self.pid)
         
-        self.BuyLimit = 0.015
+        self.BuyLimit = 0.15
         self.TimeInterval = "FIVEMIN"
         
         cursor = conn.cursor()
@@ -278,7 +278,7 @@ class MyPair(object):
      
         y = len(self.data)
         
-        period = 9
+        period = 2
         
         for x in range (y/period):  
             
@@ -291,7 +291,7 @@ class MyPair(object):
             lowest *= 0
                     
          
-        period = 26
+        period = 8
         
         for x in range (y/period):  
             
@@ -304,7 +304,7 @@ class MyPair(object):
             lowest *= 0
                     
        
-        period = 52
+        period = 16
         
         for x in range (y/period):  
             
@@ -317,7 +317,7 @@ class MyPair(object):
             lowest *= 0
             
             
-        period = 27
+        period = 8
         
         for x in range(period-1):
             self.senkouA.append((self.tenkanSen[x] + self.kijunSen[x])/ 2)
@@ -483,8 +483,8 @@ class MyPair(object):
                         ## logging action
                         ts = time.time()
                         timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
-            
-                        query = "INSERT INTO `AccountHistory`(`PID`, `Pair`, `Amount`, `Price`, `Action`, `ActionTime`) VALUES (%d,'%s',%d,%d,'Sell','%s')" % (self.pid,self.pairName,amount,timestamp)
+                        cursor = conn.cursor()
+                        query = "INSERT INTO `AccountHistory`(`PID`, `Pair`, `Amount`, `Price`, `Action`, `ActionTime`) VALUES (%d,'%s',%d,%.9f,'Sell','%s')" % (self.pid,self.pairName,amount,SellPrice,timestamp)
         
                         try:
                             cursor.execute(query)
@@ -582,7 +582,7 @@ class MyPair(object):
                     ts = time.time()
                     timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
                     cursor = conn.cursor()
-                    query = "INSERT INTO `AccountHistory`(`PID`, `Pair`, `Amount`, `Price`, `Action`, `ActionTime`) VALUES (%d,'%s',%d,%d,'Buy','%s')" % (self.pid,self.pairName,amount,BuyPrice,timestamp)
+                    query = "INSERT INTO `AccountHistory`(`PID`, `Pair`, `Amount`, `Price`, `Action`, `ActionTime`) VALUES (%d,'%s',%d,%.9f,'Buy','%s')" % (self.pid,self.pairName,amount,BuyPrice,timestamp)
         
                     try:
                         cursor.execute(query)
@@ -616,7 +616,7 @@ while True:  ##Forever loop
     
     if (pair.signal == 1):
         pair.SellPair(conn) ##sell signal --> sell pair
-    elif (pair.signal == 0 and pair.BuyPosition):
+    elif (pair.signal == 2 and pair.BuyPosition):
         pair.BuyPair(conn) ##buy signal --> check to buy pair
     
     
