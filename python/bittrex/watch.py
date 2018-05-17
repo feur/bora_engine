@@ -30,7 +30,7 @@ class MyPair(object):
         self.pid = os.getpid()  ##Get process pid
         print("pid is: %d" % self.pid)
         
-        self.BuyLimit = 0.14
+        self.BuyLimit = 0.07
         self.TimeInterval = "FIVEMIN"
         
         cursor = conn.cursor()
@@ -514,6 +514,7 @@ class MyPair(object):
         ## 2.a. If no then not in a buying position
         ## 3. Are we now on the same rating? Okay we're in buy position 
         
+        
         ## Check BTC Balance 
         while True:
             data = self.account.get_balance('BTC')
@@ -525,21 +526,46 @@ class MyPair(object):
             
         ##check total BTC in order 
         TotalBTCInOrder = 0    
+        
+        
+        ##get a list of pairs (because we can't for some fucking reason just get open orders for everything)
+        
+        ListofPairs = []   ##list of Pairs, e.g. BTC-ADA, ETH-ADA
+        ListofCurrencies= [] ##list of Currencies e.g. ADA, OMG
+        
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute ("SELECT * from Config")
+            data = cursor.fetchall()
             
-        while True:    
-            data = self.get_open_orders(self, market=None)  
-            if (data['success'] == True):
-                self.OrderBook = data['result']
-                for i in range(len(self.OrderBook)):
+            for i in range(len(data)):
+                ListofPairs.append(str(data[i][0]))
+                ListofCurrencies.append(str(data[i][7]))
+                
+        except MySQLdb.Error as error:
+            print(error)
+            conn.close()
+        
+        for i in range(len(ListofPairs)):    
+            while True:    
+                data = self.account.get_open_orders(ListofPairs[i])  
+                print(data)
+                if (data['success'] == True):
+                    print("getting order books")
+                    self.OrderBook = data['result']
+                    for i in range(len(self.OrderBook)):
                  
-                    if (self.OrderBook['OrderType'] == 'LIMIT_BUY'):  ##only count buy orders
-                        TotalBTCInOrder += float(self.OrderBook['Price'])    ## get a sum of all buy orders 
+                        if (self.OrderBook[i]['OrderType'] == 'LIMIT_BUY'):  ##only count unfinished buy orders
+                            TotalBTCInOrder += float(self.OrderBook[i]['Price'])    ## get a sum of all buy orders 
+                            print("Total BTC in order is: %.9f" % TotalBTCInOrder)
                     
-                    if (self.OrderBook['OrderType'] == 'LIMIT_SELL' and self.OrderBook['Exchange'] == self.pairName):  ##coin is allready on sell
-                        self.BTCBalance = 0
+                        if (self.OrderBook[i]['OrderType'] == 'LIMIT_SELL'):  ##coin is allready on sell but unfinished
+                            self.BTCBalance = 0
                         
-                break
+                    break
                     
+
         self.BTCAvailable = self.BTCBalance - TotalBTCInOrder #this is to prevent multiple orders made on several coin that exceed actual balance
              
         print("BTC balance: %.9f" % self.BTCAvailable)
@@ -636,12 +662,16 @@ while True:  ##Forever loop
     
     pair.GetTrend(conn)
     pair.GetSignal(conn)
-    pair.GetBuyPosition(conn)
+    
     
     if (pair.signal == 1):
         pair.SellPair(conn) ##sell signal --> sell pair
-    elif (pair.signal == 2 and pair.BuyPosition):
-        pair.BuyPair(conn) ##buy signal --> check to buy pair
+    elif (pair.signal == 2):    ##buy signal --> check to buy pair
+        
+        pair.GetBuyPosition(conn)
+        
+        if (pair.BuyPosition): ##check if we're in a buying position 
+            pair.BuyPair(conn) 
     
     
     pair.GetRating(conn)
