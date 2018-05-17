@@ -463,42 +463,39 @@ class MyPair(object):
             data = cursor.fetchone() 
             
             if (data[1] > 0.01): ##theres some amount being held 
-                amount = float(float(data[0]) * 0.995)
-            
-            print("selling %s of amount %.9f" % (self.pairName, amount))
-        
-            while True: 
-                data = self.account.get_orderbook(self.pairName, depth_type=BOTH_ORDERBOOK) ##check orderbook and complete sell order 
-            
-                if (data['success'] == True):
-                    result = data['result']['Buy']
-                    SellPrice = float(result[1]['Rate'])
-                    
-                    print("selling %d at %.9f" % (amount, SellPrice))
+                amount = float(float(data[0]) * 0.98)
+                print("selling %s of amount %.9f" % (self.pairName, amount))
                 
-                    data = self.account.trade_sell(self.pairName, ORDERTYPE_LIMIT, amount, SellPrice, TIMEINEFFECT_GOOD_TIL_CANCELLED,CONDITIONTYPE_NONE, target=0.0) ##now placing sell order
+                while True: 
+                    data = self.account.get_orderbook(self.pairName, depth_type=BOTH_ORDERBOOK) ##check orderbook and complete sell order 
+            
                     if (data['success'] == True):
-                        print("Sell Order in place")
-                        
-                        ## logging action
-                        ts = time.time()
-                        timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
-                        cursor = conn.cursor()
-                        query = "INSERT INTO `AccountHistory`(`PID`, `Pair`, `Amount`, `Price`, `Action`, `ActionTime`) VALUES (%d,'%s',%d,%.9f,'Sell','%s')" % (self.pid,self.pairName,amount,SellPrice,timestamp)
-        
-                        try:
-                            cursor.execute(query)
-                            conn.commit()
-        
-                        except MySQLdb.Error as error:
-                            print(error)
-                            conn.rollback()
-                            conn.close()
-                        
-                        break
-            
+                        result = data['result']['buy']
+                        SellPrice = float(result[1]['Rate'])
+                    
+                        print("selling %d at %.9f" % (amount, SellPrice))
                 
-               
+                        data = self.account.trade_sell(self.pairName, ORDERTYPE_LIMIT, amount, SellPrice, TIMEINEFFECT_GOOD_TIL_CANCELLED,CONDITIONTYPE_NONE, target=0.0) ##now placing sell order
+                        if (data['success'] == True):
+                            print("Sell Order in place")
+                        
+                            ## logging action
+                            ts = time.time()
+                            timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+                            cursor = conn.cursor()
+                            query = "INSERT INTO `AccountHistory`(`PID`, `Pair`, `Amount`, `Price`, `Action`, `ActionTime`) VALUES (%d,'%s',%d,%.9f,'Sell','%s')" % (self.pid,self.pairName,amount,SellPrice,timestamp)
+        
+                            try:
+                                cursor.execute(query)
+                                conn.commit()
+        
+                            except MySQLdb.Error as error:
+                                print(error)
+                                conn.rollback()
+                                conn.close()
+                        
+                            break
+            
         except MySQLdb.Error as error:
             print(error)
             conn.close()
@@ -557,7 +554,7 @@ class MyPair(object):
                     for i in range(len(self.OrderBook)):
                  
                         if (self.OrderBook[i]['OrderType'] == 'LIMIT_BUY'):  ##only count unfinished buy orders
-                            TotalBTCInOrder += float(self.OrderBook[i]['Price'])    ## get a sum of all buy orders 
+                            TotalBTCInOrder += float(float(self.OrderBook[i]['Quantity']) * float(float(self.OrderBook[i]['Limit'])))
                             print("Total BTC in order is: %.9f" % TotalBTCInOrder)
                     
                         if (self.OrderBook[i]['OrderType'] == 'LIMIT_SELL'):  ##coin is allready on sell but unfinished
