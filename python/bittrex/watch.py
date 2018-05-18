@@ -30,11 +30,11 @@ class MyPair(object):
         self.pid = os.getpid()  ##Get process pid
         print("pid is: %d" % self.pid)
         
-        self.BuyLimit = 0.07
+        self.BuyLimit = 0.06
         self.TimeInterval = "FIVEMIN"
         
         cursor = conn.cursor()
-        query = "UPDATE Pairs SET `IchState`= NULL, PID = %d WHERE Pair = '%s'" % (self.pid,entry.pair) ##Null IchState, put in PID and entry pair
+        query = "UPDATE Pairs SET `IchState`= NULL, `EMAState`= NULL, PID = %d WHERE Pair = '%s'" % (self.pid,entry.pair) ##Null IchState, put in PID and entry pair
 
         try:
             cursor.execute(query)
@@ -186,8 +186,10 @@ class MyPair(object):
             self.diPos.append((self.dmPosMax[i] / self.trMax[i]) * 100)
             self.diNeg.append((self.dmNegMax[i] / self.trMax[i]) * 100)
             
+        print("DI- is: %.9f" % self.diNeg[-1])    
+        print("DI+ is: %.9f" % self.diPos[-1])        
         
-        if (self.diNeg[-1] > 20 and self.diPos[-1] > 20): ## both trends are significatn
+        if (self.diNeg[-1] > 20 or self.diPos[-1] > 20): ## both trends are significatn
             
             if (self.diNeg[-1] > self.diPos[-1]): ##Downtrend
                 self.Direction = 0 
@@ -343,6 +345,7 @@ class MyPair(object):
             data = cursor.fetchone()
                 
             IchPrevState = data[6] ##prev IchState 
+            EMAPrevState = data[7] ##prev EMAState
             
         except MySQLdb.Error as error:
             print(error)
@@ -354,6 +357,11 @@ class MyPair(object):
         else: 
             self.crossover = 0
             
+        if (EMAPrevState >= 0 and self.EMATrend != EMAPrevState):  ##IchPrevState was previoulsy recorded 
+            self.EMACrossover = 1
+        else: 
+            self.EMACrossover = 0
+            
             
         print("crossover: %d" % self.crossover)    
         
@@ -361,16 +369,18 @@ class MyPair(object):
         ##signal is now represented by its strength 
        ## self.signal = ( self.EMATrend + self.crossover ) * self.Direction   ##amplified by confidence of Direction, 
         
-        if (self.crossover == 1 and self.IchState == 1):
-            if (self.EMATrend == 1 or self.Direction == 1):
+        
+        ##signal is eitehr when there is a IchState crossover or a EMA crossover 
+        ##sginal trend is confifrmed by the IchState and EMAstate
+        
+        if (self.crossover or self.EMACrossover):   ##IchState crossover or EMACrossover
+            if (self.IchState == 1 and self.EMATrend == 1):  ##uptrend, need double indication
                 self.signal = 2
-            else: 
-                self.signal = 0
-        elif (self.crossover == 1 and  self.IchState == 0):
-            self.signal = 1
+            elif (self.IchState == 0 or self.EMATrend == 0): ##downtrend, need signle indication
+                self.signal = 1
         else:
-            self.signal = 0 
-            
+            self.signal = 0 ##no defiend trend 
+        
             
         #Log when signals have a buy or sell    
         
@@ -422,7 +432,7 @@ class MyPair(object):
             
         
         self.fib = GetFib(self.current['C'], a, b, c, d, e, f)
-        self.rating = (1-self.fib) * self.momentum
+        self.rating = self.fib * self.momentum * (self.diPos[-1] + self.diNeg[-1])
         
         print(self.rating)
         
@@ -440,7 +450,7 @@ class MyPair(object):
 
 
         cursor = conn.cursor()
-        query = "UPDATE Pairs SET Rating = %d,`EMA55`=%.9f,`EMA21`=%.9f,`EMA13`=%.9f,`EMA8`=%.9f,`IchState`=%.9f, TradeSignal = %d, PID = %d WHERE Pair = '%s'" % (self.rating,self.EMA[0],self.EMA[1],self.EMA[2],self.EMA[3],self.IchState,self.signal,self.pid,self.pairName)
+        query = "UPDATE Pairs SET Rating = %d,`EMA55`=%.9f,`EMA21`=%.9f,`EMA13`=%.9f,`EMA8`=%.9f,`IchState`=%.9f,`EMAState`=%.9f, TradeSignal = %d, PID = %d WHERE Pair = '%s'" % (self.rating,self.EMA[0],self.EMA[1],self.EMA[2],self.EMA[3],self.IchState,self.EMATrend,self.signal,self.pid,self.pairName)
 
         try:
             cursor.execute(query)
