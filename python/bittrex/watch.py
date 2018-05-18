@@ -30,7 +30,7 @@ class MyPair(object):
         self.pid = os.getpid()  ##Get process pid
         print("pid is: %d" % self.pid)
         
-        self.BuyLimit = 0.06
+        self.BuyLimit = 0.03
         self.TimeInterval = "FIVEMIN"
         
         cursor = conn.cursor()
@@ -680,7 +680,7 @@ while True:  ##Forever loop
     
     if (pair.signal == 1):
         pair.SellPair(conn) ##sell signal --> sell pair
-    elif (pair.signal == 2):    ##buy signal --> check to buy pair
+    elif (pair.signal == 2 and pair.rating > 0):    ##buy signal --> check to buy pair
         
         pair.GetBuyPosition(conn)
         
