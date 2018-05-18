@@ -482,6 +482,9 @@ class MyPair(object):
                     if (data['success'] == True):
                         result = data['result']['buy']
                         SellPrice = float(result[1]['Rate'])
+                        
+                        if (SellPrice < float(0.99 * self.current['C']) or SellPrice > float(1.1 * self.current['C'])): ##someone put a buyy order at an unrealistic price to trick bots or sell order is too low for gains
+                            break
                     
                         print("selling %d at %.9f" % (amount, SellPrice))
                 
@@ -627,6 +630,10 @@ class MyPair(object):
             if (data['success'] == True):
                 result = data['result']['buy']
                 BuyPrice = float(result[1]['Rate'])
+                
+                if (BuyPrice < float(0.99 * self.current['C']) or BuyPrice > float(1.01 * self.current['C'])): ##someone put a sell order at an unrealistic price to trick bots or sell order is too high for gains
+                    break                
+                
                 print("buying %.9f at %.9f" % (amount, BuyPrice))
                 
     
