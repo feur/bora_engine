@@ -681,7 +681,7 @@ while True:  ##Forever loop
         pair.GetSignal()
         
         if (pair.signal == 1):
-            pair.SellPair(conn) ##sell signal --> sell pair
+            pair.SellPair() ##sell signal --> sell pair
         elif (pair.signal == 2 and pair.rating > 0):    ##buy signal --> check to buy pair
             pair.GetBuyPosition()
             if (pair.BuyPosition): ##check if we're in a buying position \

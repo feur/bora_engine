@@ -49,14 +49,14 @@ class MyPair(object):
                 
                 ##filter Data for 4 hour period  
                 
-                offset = len(self.Rawdata) % 4
+                offset = (len(self.Rawdata) - 1) % 4
                 
                 while (offset < len(self.Rawdata)):                    
                     self.data.append(self.Rawdata[offset])
                     offset += 4
+                    
                 
                 self.current = self.data[-1]
-                
                 print("Current 4hr price: %.9f for pair %s" % (self.current['C'],self.pairName))
                 
                 break
