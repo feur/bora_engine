@@ -25,45 +25,63 @@ def GetEntry():
 
 class MyPair(object):
 
-    def __init__(self,entry,conn):
+    def __init__(self,entry):
         
         self.pid = os.getpid()  ##Get process pid
         print("pid is: %d" % self.pid)
         
-        self.BuyLimit = 0.03
-        self.TimeInterval = "FIVEMIN"
+        self.BuyLimit = 0.12
+        self.TimeInterval = "HOUR"
+        self.pairName = entry.pair
         
-        cursor = conn.cursor()
-        query = "UPDATE Pairs SET `IchState`= NULL, `EMAState`= NULL, PID = %d WHERE Pair = '%s'" % (self.pid,entry.pair) ##Null IchState, put in PID and entry pair
+        self.conn = MySQLdb.connect(DB_HOST,DB_USER,DB_PW,DB_NAME)       
+        cursor = self.conn.cursor()
+        query = "UPDATE Pairs SET `IchState`= NULL, `EMAState`= NULL, PID = %d WHERE Pair='%s'" % (self.pid,entry.pair) ##Null IchState, put in PID and entry pair
 
         try:
             cursor.execute(query)
-            conn.commit()
+            self.conn.commit()
+            print("intialized")
     
         except MySQLdb.Error as error:
             print(error)
-            conn.rollback()
-            conn.close()
-    
+            self.conn.rollback()
+            self.conn.close()
+            
+        
+    def GetWatchSignal(self):
+        
+        cursor = self.conn.cursor()
+        query = "SELECT Watch, Rating from `Pairs` WHERE Pair='%s' " % (self.pairName)
+        
+        try:
+            cursor.execute(query)
+            data = cursor.fetchone()
+            self.watch = data[0]
+            self.rating = data[1]
+        
+        except MySQLdb.Error as error:
+            print(error)
+            self.conn.close()
+        
 
      
-    def GetData(self,entry): 
+    def GetData(self): 
         
         self.EMA = [0,0,0,0]  ##55,21,13,8
         
         while True: 
             self.account = Bittrex("f5d8f6b8b21c44548d2799044d3105f0", "b3845ea35176403bb530a31fd4481165", api_version=API_V2_0)
-            data = self.account.get_candles(entry.pair, tick_interval=TICKINTERVAL_FIVEMIN)
+            data = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_HOUR)
         
             if (data['success'] == True and data['result']):
-                self.pairName = entry.pair
                 self.data = data['result']
                 self.current = self.data[-1]
                 self.entry = entry
                 break
 
     
-    def GetTrend(self,conn):
+    def GetTrend(self):
         """
         
         1. Get Di+ (self.diPos)
@@ -205,7 +223,7 @@ class MyPair(object):
         print("Direction is: %d" % self.Direction)   
       
 
-    def GetSignal(self,conn):
+    def GetSignal(self):
         
         """
         
@@ -336,16 +354,16 @@ class MyPair(object):
     
         #find previous state of TenkanSen & KijunSen to find Crossover
             
-        cursor = conn.cursor()
+        cursor = self.conn.cursor()
             
-        query = "SELECT * FROM `Pairs` WHERE PAIR = '%s'" % (self.pairName)
+        query = "SELECT IchState, EMAState FROM `Pairs` WHERE PAIR = '%s'" % (self.pairName)
         
         try:
             cursor.execute (query)
             data = cursor.fetchone()
                 
-            IchPrevState = data[6] ##prev IchState 
-            EMAPrevState = data[7] ##prev EMAState
+            IchPrevState = data[0] ##prev IchState 
+            EMAPrevState = data[1] ##prev EMAState
             
         except MySQLdb.Error as error:
             print(error)
@@ -365,15 +383,11 @@ class MyPair(object):
             
         print("crossover: %d" % self.crossover)    
         
-        
-        ##signal is now represented by its strength 
-       ## self.signal = ( self.EMATrend + self.crossover ) * self.Direction   ##amplified by confidence of Direction, 
-        
-        
+    
         ##signal is eitehr when there is a IchState crossover or a EMA crossover 
         ##sginal trend is confifrmed by the IchState and EMAstate
         
-        if (self.crossover or self.EMACrossover):   ##IchState crossover or EMACrossover
+        if (self.crossover):   ##IchState crossover or EMACrossover
             if (self.IchState == 1 and self.EMATrend == 1):  ##uptrend, need double indication
                 self.signal = 2
             elif (self.IchState == 0 or self.EMATrend == 0): ##downtrend, need signle indication
@@ -381,8 +395,6 @@ class MyPair(object):
         else:
             self.signal = 0 ##no defiend trend 
         
-            
-        #Log when signals have a buy or sell    
         
         if (self.signal > 0):
             ts = time.time()
@@ -392,12 +404,12 @@ class MyPair(object):
         
             try:
                 cursor.execute(query)
-                conn.commit()
+                self.conn.commit()
         
             except MySQLdb.Error as error:
                 print(error)
-                conn.rollback()
-                conn.close()
+                self.conn.rollback()
+                self.conn.close()
      
                 
     
@@ -406,13 +418,13 @@ class MyPair(object):
       
             
         
-    def GetRating(self,conn):
+    def GetRating(self):
         
         
         self.momentum = GetMomentum(self.data)    
         
         #Get a,b,c,d,e,f from database
-        cursor = conn.cursor()
+        cursor = self.conn.cursor()
     
         query = "SELECT * FROM Config WHERE PAIR = '%s'" % (self.pairName)
         
@@ -437,35 +449,25 @@ class MyPair(object):
         print(self.rating)
         
     
-    def UploadData(self,conn):
-    
-        """
-        Insert self.rating into Rating 
-        Insert self.signal into signal 
-        Insert self.PID into PID
-    
-        UPDATE Pairs SET Rating = 160, TradeSignal = 145, PID = 159 WHERE Pair = 'BTC-ADA';
+    def UploadData(self):
 
-        """
-
-
-        cursor = conn.cursor()
-        query = "UPDATE Pairs SET Rating = %d,`EMA55`=%.9f,`EMA21`=%.9f,`EMA13`=%.9f,`EMA8`=%.9f,`IchState`=%.9f,`EMAState`=%.9f, TradeSignal = %d, PID = %d WHERE Pair = '%s'" % (self.rating,self.EMA[0],self.EMA[1],self.EMA[2],self.EMA[3],self.IchState,self.EMATrend,self.signal,self.pid,self.pairName)
+        cursor = self.conn.cursor()
+        query = "UPDATE Pairs SET `EMA55`=%.9f,`EMA21`=%.9f,`EMA13`=%.9f,`EMA8`=%.9f,`IchState`=%.9f,`EMAState`=%.9f, TradeSignal = %d, PID = %d WHERE Pair = '%s'" % (self.EMA[0],self.EMA[1],self.EMA[2],self.EMA[3],self.IchState,self.EMATrend,self.signal,self.pid,self.pairName)
 
         try:
             cursor.execute(query)
-            conn.commit()
+            self.conn.commit()
         
         except MySQLdb.Error as error:
             print(error)
-            conn.rollback()
-            conn.close()
+            self.conn.rollback()
+            self.conn.close()
                      
-    def SellPair(self,conn):   
+    def SellPair(self):   
         
         ##get pair and amount to sell
         
-        cursor = conn.cursor()
+        cursor = self.conn.cursor()
         query = "SELECT Hold, HoldBTC FROM `Pairs` where Pair='%s'" % (self.pairName)
         
         try:
@@ -483,7 +485,7 @@ class MyPair(object):
                         result = data['result']['buy']
                         SellPrice = float(result[1]['Rate'])
                         
-                        if (SellPrice < float(0.99 * self.current['C']) or SellPrice > float(1.1 * self.current['C'])): ##someone put a buyy order at an unrealistic price to trick bots or sell order is too low for gains
+                        if (SellPrice < float(0.95 * self.current['C']) or SellPrice > float(1.15 * self.current['C'])): ##someone put a buyy order at an unrealistic price to trick bots or sell order is too low for gains
                             break
                     
                         print("selling %d at %.9f" % (amount, SellPrice))
@@ -495,26 +497,26 @@ class MyPair(object):
                             ## logging action
                             ts = time.time()
                             timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
-                            cursor = conn.cursor()
+                            cursor = self.conn.cursor()
                             query = "INSERT INTO `AccountHistory`(`PID`, `Pair`, `Amount`, `Price`, `Action`, `ActionTime`) VALUES (%d,'%s',%d,%.9f,'Sell','%s')" % (self.pid,self.pairName,amount,SellPrice,timestamp)
         
                             try:
                                 cursor.execute(query)
-                                conn.commit()
+                                self.conn.commit()
         
                             except MySQLdb.Error as error:
                                 print(error)
-                                conn.rollback()
-                                conn.close()
+                                self.conn.rollback()
+                                self.conn.close()
                         
                             break
             
         except MySQLdb.Error as error:
             print(error)
-            conn.close()
+            self.conn.close()
             
             
-    def GetBuyPosition(self,conn):
+    def GetBuyPosition(self):
         
         ## determine whether it should be bought despite the signal
         ## Check if theres enough balance in the first place
@@ -543,7 +545,7 @@ class MyPair(object):
         ListofPairs = []   ##list of Pairs, e.g. BTC-ADA, ETH-ADA
         ListofCurrencies= [] ##list of Currencies e.g. ADA, OMG
         
-        cursor = conn.cursor()
+        cursor = self.conn.cursor()
         
         try:
             cursor.execute ("SELECT * from Config")
@@ -555,7 +557,7 @@ class MyPair(object):
                 
         except MySQLdb.Error as error:
             print(error)
-            conn.close()
+            self.conn.close()
         
         for i in range(len(ListofPairs)):    
             while True:    
@@ -583,8 +585,8 @@ class MyPair(object):
         if (self.BTCAvailable >= self.BuyLimit):
         
             try:
-                cursor = conn.cursor()
-                cursor.execute ("SELECT Pair, HoldBTC, TradeSignal FROM `Pairs` ORDER BY Rating DESC") ##getting a list of Pairs ord$
+                cursor = self.conn.cursor()
+                cursor.execute ("SELECT Pair, Watch, HoldBTC, TradeSignal FROM `Pairs` ORDER BY Rating DESC") ##getting a list of Pairs ord$
                 data = cursor.fetchall() 
     
                 ##now filter out the list
@@ -594,21 +596,21 @@ class MyPair(object):
                         self.BuyPosition = 1
                         print("in Buying Position")
                         break
-                    elif (data[i][1] <= self.BuyLimit and data[i][2] == 2 ): #The Pair has a buy signal and has room to hold more
+                    elif (data[i][2] <= self.BuyLimit and data[i][3] == 2 and data[i][1] == 1): #The Pair has a buy signal and has room to hold more and is being watched
                         self.BuyPosition = 0
                         print("not in buying Position")
                         break
             
             except MySQLdb.Error as error:
                 print(error)
-                conn.close()
+                self.conn.close()
         else:
             self.BuyPosition = 0
             print ("not enough balance")
                 
     
     
-    def BuyPair(self,conn):   
+    def BuyPair(self):   
         
         print("buying pair")
          
@@ -628,10 +630,10 @@ class MyPair(object):
             data = self.account.get_orderbook(self.pairName, depth_type=BOTH_ORDERBOOK)
             
             if (data['success'] == True):
-                result = data['result']['buy']
+                result = data['result']['sell']
                 BuyPrice = float(result[1]['Rate'])
                 
-                if (BuyPrice < float(0.99 * self.current['C']) or BuyPrice > float(1.01 * self.current['C'])): ##someone put a sell order at an unrealistic price to trick bots or sell order is too high for gains
+                if (BuyPrice < float(0.95 * self.current['C']) or BuyPrice > float(1.15 * self.current['C'])): ##someone put a sell order at an unrealistic price to trick bots or sell order is too high for gains
                     break                
                 
                 print("buying %.9f at %.9f" % (amount, BuyPrice))
@@ -643,17 +645,17 @@ class MyPair(object):
                      ## logging action
                     ts = time.time()
                     timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
-                    cursor = conn.cursor()
+                    cursor = self.conn.cursor()
                     query = "INSERT INTO `AccountHistory`(`PID`, `Pair`, `Amount`, `Price`, `Action`, `ActionTime`) VALUES (%d,'%s',%d,%.9f,'Buy','%s')" % (self.pid,self.pairName,amount,BuyPrice,timestamp)
         
                     try:
                         cursor.execute(query)
-                        conn.commit()
+                        self.conn.commit()
         
                     except MySQLdb.Error as error:
                         print(error)
-                        conn.rollback()
-                        conn.close()
+                        self.conn.rollback()
+                        self.conn.close()
                         
                     break
                 
@@ -663,33 +665,33 @@ class MyPair(object):
 ##program start here
 
 entry = GetEntry() ##Get arguments to define Pair and Fib levels
-conn = MySQLdb.connect(DB_HOST,DB_USER,DB_PW,DB_NAME)
-pair = MyPair(entry,conn)
+pair = MyPair(entry)
 
 
 while True:  ##Forever loop 
 
     ##get Data
-    pair.GetData(entry)
 
-    print("current price is: %.9f" % pair.current['C'])
+    pair.GetWatchSignal()
     
-    pair.GetTrend(conn)
-    pair.GetSignal(conn)
-    
-    
-    if (pair.signal == 1):
-        pair.SellPair(conn) ##sell signal --> sell pair
-    elif (pair.signal == 2 and pair.rating > 0):    ##buy signal --> check to buy pair
+    if (pair.watch):    
+        pair.GetData()
+        print("current price is: %.9f" % pair.current['C'])
+        pair.GetTrend()
+        pair.GetSignal()
         
-        pair.GetBuyPosition(conn)
-        
-        if (pair.BuyPosition): ##check if we're in a buying position 
-            pair.BuyPair(conn) 
+        if (pair.signal == 1):
+            pair.SellPair(conn) ##sell signal --> sell pair
+        elif (pair.signal == 2 and pair.rating > 0):    ##buy signal --> check to buy pair
+            pair.GetBuyPosition()
+            if (pair.BuyPosition): ##check if we're in a buying position \
+                pair.BuyPair() 
+            
+        pair.UploadData()
+    else: 
+        print("Pair is not to be watched")
     
     
-    pair.GetRating(conn)
-    pair.UploadData(conn)
     
     time.sleep(10) ## enoguh delay for an order to be complete
 

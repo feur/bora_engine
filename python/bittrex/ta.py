@@ -21,7 +21,10 @@ def GetFib(current, a, b, c, d, e,f):
         low = b
     else:
         return  1
-
+        
+        
+    print("Fib is between %0.9f and %0.9f" % (high,low))
+    
     fib = (current - low) / (high - low)
     return fib
     
