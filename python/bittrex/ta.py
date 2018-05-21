@@ -9,18 +9,23 @@ from settings import *
 
 
 def GetFib(current, a, b, c, d, e,f):
-
-    if current < e:
-        high = e
-        low = f
-    elif current > e and current < c:
-        high = c
-        low = d
-    elif current > c and current < a:
+    
+    ##find High first
+    if current < a and current > c:
         high = a
+    elif current < c and current > e: 
+        high = c
+    elif current < e: 
+        high = e
+    elif current > a:
+        high = a
+        
+    if high == a:
         low = b
-    else:
-        return  1
+    elif high == c:
+        low = d
+    elif high == e:
+        low = f
         
         
     print("Fib is between %0.9f and %0.9f" % (high,low))
