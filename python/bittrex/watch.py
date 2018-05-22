@@ -673,23 +673,19 @@ while True:  ##Forever loop
     ##get Data
 
     pair.GetWatchSignal()
+    pair.GetData()
+    print("current price is: %.9f" % pair.current['C'])
+    pair.GetTrend()
+    pair.GetSignal()
     
-    if (pair.watch):    
-        pair.GetData()
-        print("current price is: %.9f" % pair.current['C'])
-        pair.GetTrend()
-        pair.GetSignal()
-        
-        if (pair.signal == 1):
-            pair.SellPair() ##sell signal --> sell pair
-        elif (pair.signal == 2 and pair.rating > 0):    ##buy signal --> check to buy pair
-            pair.GetBuyPosition()
-            if (pair.BuyPosition): ##check if we're in a buying position \
-                pair.BuyPair() 
+    if (pair.signal == 1):
+        pair.SellPair() ##sell signal --> sell pair
+    elif (pair.signal == 2 and pair.rating > 0 and pair.watch):    ##buy signal --> check to buy pair
+        pair.GetBuyPosition()
+        if (pair.BuyPosition): ##check if we're in a buying position \
+            pair.BuyPair() 
             
-        pair.UploadData()
-    else: 
-        print("Pair is not to be watched")
+    pair.UploadData()
     
     
     
