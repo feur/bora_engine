@@ -32,7 +32,8 @@ class MyPair(object):
 
         self.TimeInterval = "HOUR"
         self.pairName = entry.pair
-        self.conn = MySQLdb.connect(DB_HOST,DB_USER,DB_PW,DB_NAME)   
+        self.conn = MySQLdb.connect(Fink_DB_HOST,Fink_DB_USER,Fink_DB_PW,Fink_DB_NAME) 
+        self.edel = MySQLdb.connect(Edel_DB_HOST,Edel_DB_USER,Edel_DB_PW,Edel_DB_NAME) ##connect to edel DB
         
         ##get BuyLimit, api key and secret
         cursor = self.conn.cursor()
@@ -41,8 +42,8 @@ class MyPair(object):
         try:
             cursor.execute(query)
             data = cursor.fetchone()
-            self.API = data[0]
-            self.Secret = data[1]
+            self.api = data[0]
+            self.secret = data[1]
             self.BuyLimit = float(data[2])
         
         except MySQLdb.Error as error:
@@ -67,27 +68,55 @@ class MyPair(object):
         
     def GetWatchSignal(self):
         
-        cursor = self.conn.cursor()
-        query = "SELECT Watch, Rating from `Pairs` WHERE Pair='%s' " % (self.pairName)
+        cursor = self.edel.cursor()
+        query = "SELECT Watch from `Pair_List` WHERE Pair='%s' " % (self.pairName)
         
         try:
             cursor.execute(query)
             data = cursor.fetchone()
             self.watch = data[0]
-            self.rating = data[1]
+        
+        except MySQLdb.Error as error:
+            print(error)
+            self.edel.close()
+            
+            
+    def GetActivationStatus(self):
+        
+        ##Get UID First
+        cursor = self.conn.cursor()
+        query = "SELECT UID from `Settings` WHERE 1 " 
+        try:
+            cursor.execute(query)
+            data = cursor.fetchone()
+            self.uid = data[0]
         
         except MySQLdb.Error as error:
             print(error)
             self.conn.close()
-        
 
-     
+        ##Check that Activated = 1 on that UID
+        
+        cursor = self.edel.cursor()
+        query = "SELECT Active from `User_List` WHERE UID='%s' " % (self.uid)
+        
+        try:
+            cursor.execute(query)
+            data = cursor.fetchone()
+            self.activation = data[0]
+        
+        except MySQLdb.Error as error:
+            print(error)
+            self.edel.close()
+        
+       
+            
     def GetData(self): 
         
         self.EMA = [0,0,0,0]  ##55,21,13,8
         
         while True: 
-            self.account = Bittrex("f5d8f6b8b21c44548d2799044d3105f0", "b3845ea35176403bb530a31fd4481165", api_version=API_V2_0)
+            self.account = Bittrex(self.api,self.secret, api_version=API_V2_0)
             data = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_HOUR)
         
             if (data['success'] == True and data['result']):
@@ -137,8 +166,6 @@ class MyPair(object):
         When a signal is detected and defined, a buy or sell order is actioned
 
         '''
-        
-      
         
         high=[]
         low=[]
@@ -276,7 +303,7 @@ class MyPair(object):
     def UploadData(self):
 
         cursor = self.conn.cursor()
-        query = "UPDATE Pairs SET `EMA55`=%.9f,`EMA21`=%.9f,`EMA13`=%.9f,`EMA8`=%.9f,`IchState`=%.9f,`EMAState`=%.9f, TradeSignal = %d, PID = %d WHERE Pair = '%s'" % (self.EMA[0],self.EMA[1],self.EMA[2],self.EMA[3],self.IchState,self.EMATrend,self.signal,self.pid,self.pairName)
+        query = "UPDATE Pairs SET `IchState`=%.9f, TradeSignal = %d, PID = %d WHERE Pair = '%s'" % (self.IchState,self.signal,self.pid,self.pairName)
 
         try:
             cursor.execute(query)
@@ -502,9 +529,18 @@ while True:  ##Forever loop
     
     pair.GetData()
     print("current price is: %.9f" % pair.current['C'])    
-   
+    
+    
+    pair.GetActivationStatus()   
+    if (pair.activation == 0):
+        print("sorry you're agent system is not activated, please activate it !")
+        break
+    
+    
     pair.GetTrend()
     pair.GetSignal()
+    
+    
     
     if (pair.signal == 1):
         pair.SellPair() ##sell signal --> sell pair
