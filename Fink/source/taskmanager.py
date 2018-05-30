@@ -25,7 +25,7 @@ def StartAllUnits(conn, listofpairs):
                 print("process %s is still running with pid %d" % (data[i][0], data[i][1]))
             else:
                     print("re-running process for this component %s" % (data[i][0]))
-                    process = subprocess.call("python ~/bora_local/python/bittrex/" + data[i][0] + ".py > /dev/null 2>&1 & ",  shell=True)
+                    process = subprocess.call("python ~/Fink/source/" + data[i][0] + ".py > /dev/null 2>&1 & ",  shell=True)
               
     except MySQLdb.Error as error:
         print(error)
@@ -46,7 +46,7 @@ def StartAllUnits(conn, listofpairs):
                 print("agent for %s is still running with pid %d" % (listofpairs[i], data[0]))
             else:
                 print("re-running agent for this pair %s" % (listofpairs[i]))
-                process = subprocess.call("python ~/bora_local/python/bittrex/agent.py " + "-p " + listofpairs[i] + " > /dev/null 2>&1 & ",  shell=True)
+                process = subprocess.call("python ~/Fink/source/agent.py " + "-p " + listofpairs[i] + " > /dev/null 2>&1 & ",  shell=True)
          
             
         except MySQLdb.Error as error:
