@@ -121,6 +121,9 @@ def InitPairs(fink,edel):
         cursor.execute ("DELETE FROM `AccountBalance`")
         fink.commit()
         
+         cursor.execute ("DELETE FROM `AccountHistory`")
+        fink.commit()
+        
         cursor.execute ("DELETE FROM `SignalLog`")
         fink.commit()
               

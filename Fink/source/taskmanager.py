@@ -24,31 +24,31 @@ def StartAllUnits(conn, listofpairs):
             if psutil.pid_exists(data[i][1]):
                 print("process %s is still running with pid %d" % (data[i][0], data[i][1]))
             else:
-                    print("re-running process for this component %s" % (data[i][0]))
-                    process = subprocess.call("python ~/Fink/source/" + data[i][0] + ".py > /dev/null 2>&1 & ",  shell=True)
+                print("re-running process for this component %s" % (data[i][0]))
+                process = subprocess.call("python ~/Fink/source/" + data[i][0] + ".py > /dev/null 2>&1 & ",  shell=True)
               
     except MySQLdb.Error as error:
         print(error)
         conn.close()
         
-    ##making sure all agents run
         
-    for i in range(len(listofpairs)):
-        query = "SELECT PID from Pairs WHERE Pair = '%s'" % (listofpairs[i])
+def StartAgent(pair,conn):
+        
+    ##making sure all agents run
+        cursor = conn.cursor()
+        query = "SELECT PID from Pairs WHERE Pair = '%s'" % (pair)
         
         try:
-            
             cursor.execute (query)
             data = cursor.fetchone() #find PID for PAIR
             
             #check if pid is running
             if psutil.pid_exists(data[0]):
-                print("agent for %s is still running with pid %d" % (listofpairs[i], data[0]))
+                print("agent for %s is still running with pid %d" % (pair, data[0]))
             else:
-                print("re-running agent for this pair %s" % (listofpairs[i]))
-                process = subprocess.call("python ~/Fink/source/agent.py " + "-p " + listofpairs[i] + " > /dev/null 2>&1 & ",  shell=True)
-         
-            
+                print("re-running agent for this pair %s" % (pair))
+                process = subprocess.call("python ~/Fink/source/agent.py " + "-p " + pair + " > /dev/null 2>&1 & ",  shell=True)
+               
         except MySQLdb.Error as error:
             print(error)
             conn.close()
@@ -74,7 +74,6 @@ try:
     cursor.execute ("SELECT `Pair`, `Currency` FROM `Pairs` WHERE 1")
     data = cursor.fetchall()
     
-    
     for i in range(len(data)):
         ListofPairs.append(str(data[i][0]))
         ListofCurrencies.append(str(data[i][1]))
@@ -87,7 +86,9 @@ except MySQLdb.Error as error:
 
 while True: 
     
-    StartAllUnits(conn,ListofPairs) ##start all components and agents 
+    StartAllUnits(conn) ##start all components and agents
+    for i in range(len(ListofPairs)):
+        StartAgent(ListofPairs[i],conn)
     time.sleep(10)
     
    
