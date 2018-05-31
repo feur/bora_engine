@@ -378,8 +378,7 @@ class MyPair(object):
         ## 2.a. If no then not in a buying position
         ## 3. Are we now on the same rating? Okay we're in buy position 
         
-       
-
+      
         ## Check BTC Balance 
         while True:
             data = self.account.get_balance('BTC')
@@ -401,12 +400,12 @@ class MyPair(object):
         cursor = self.conn.cursor()
         
         try:
-            cursor.execute ("SELECT * from Config")
+            cursor.execute ("SELECT `Pair`, `Currency` FROM `Pairs` WHERE 1")
             data = cursor.fetchall()
             
             for i in range(len(data)):
                 ListofPairs.append(str(data[i][0]))
-                ListofCurrencies.append(str(data[i][7]))
+                ListofCurrencies.append(str(data[i][1]))
                 
         except MySQLdb.Error as error:
             print(error)

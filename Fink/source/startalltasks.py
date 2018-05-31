@@ -64,11 +64,9 @@ print("pid is: %d" % pid)
 
 conn = MySQLdb.connect(Fink_DB_HOST,Fink_DB_USER,Fink_DB_PW,Fink_DB_NAME) ##connect to DB
 
-while True: 
-    
-    StartAllUnits(conn) ##start all components and agents
-    StartAgents(conn)
-    time.sleep(10)
+StartAllUnits(conn) ##start all components and agents
+StartAgents(conn)
+time.sleep(10)
     
    
 
