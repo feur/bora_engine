@@ -139,8 +139,28 @@ class Account(object):
             print(error)
             self.conn.rollback()
             self.conn.close()
-     
+            
+            
+    def StartAgent(self, pair):
+    
+    ##get a list of all Pairs in database and find it's pid and check it     
+        cursor = self.conn.cursor()
+        query = "SELECT `PID` FROM `Pairs` WHERE Pair='%s'" % (pair)
+  
+        try:
+            cursor.execute(query)
+            data = cursor.fetchone()
+            
+            if psutil.pid_exists(data[0]):
+                print("agent for %s is still running with pid %d" % (pair, data[0]))
+            else:
+                print("Agent with PID: %s is not running, re-running agent for this pair %s" % (data[0],pair))
+                agent = subprocess.call("python ~/Fink/source/agent.py " + "-p " + pair + " > /dev/null 2>&1 & ",  shell=True)
    
+        except MySQLdb.Error as error:
+            print(error)
+            conn.close()
+              
 
                 
 ##program start here
@@ -195,6 +215,7 @@ while True:
 
     for i in range(len(ListofPairs)):
         PersonalAccount.GetCurrencyBalance(ListofCurrencies[i], ListofPairs[i])
+        PersonalAccount.StartAgent(ListofPairs[i])
     
     PersonalAccount.GetTotalBalance()
     PersonalAccount.LogAccountBalance(pid)
