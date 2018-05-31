@@ -337,7 +337,7 @@ class MyPair(object):
                 
                 while True: 
                     
-                    print("selling %d at %.9f" % (amount, self.kijunSen[0]))
+                    print("selling %d at %.9f" % (amount, self.tenkanSen[0]))
                     data = self.account.trade_sell(self.pairName, ORDERTYPE_LIMIT, amount, self.kijunSen[0], TIMEINEFFECT_GOOD_TIL_CANCELLED,CONDITIONTYPE_NONE, target=0.0) ##now placing sell order
                     
                     if (data['success'] == True):
