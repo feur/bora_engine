@@ -45,6 +45,7 @@ class MyPair(object):
             self.api = data[0]
             self.secret = data[1]
             self.BuyLimit = float(data[2])
+            self.uid = data[3]
         
         except MySQLdb.Error as error:
             print(error)
@@ -83,18 +84,6 @@ class MyPair(object):
             
     def GetActivationStatus(self):
         
-        ##Get UID First
-        cursor = self.conn.cursor()
-        query = "SELECT UID from `Settings` WHERE 1 " 
-        try:
-            cursor.execute(query)
-            data = cursor.fetchone()
-            self.uid = data[0]
-        
-        except MySQLdb.Error as error:
-            print(error)
-            self.conn.close()
-
         ##Check that Activated = 1 on that UID
         
         cursor = self.edel.cursor()
@@ -543,7 +532,7 @@ while True:  ##Forever loop
     
     if (pair.signal == 1):
         pair.SellPair() ##sell signal --> sell pair
-    elif (pair.signal == 2 and pair.rating > 0 and pair.watch == 1):    ##buy signal --> check to buy pair
+    elif (pair.signal == 0 and pair.rating > 0 and pair.watch == 0):    ##buy signal --> check to buy pair
         pair.GetBuyPosition()
         if (pair.BuyPosition): ##check if we're in a buying position 
             pair.BuyPair() 
