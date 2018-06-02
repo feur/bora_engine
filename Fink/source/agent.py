@@ -106,7 +106,7 @@ class MyPair(object):
         
         while True: 
             self.account = Bittrex(self.api,self.secret, api_version=API_V2_0)
-            data = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_HOUR)
+            data = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_FIVEMIN)
         
             if (data['success'] == True and data['result']):
                 self.data = data['result']
@@ -461,7 +461,7 @@ class MyPair(object):
                 result = data['result']['buy'] ##buy orders
             
                 for i in range(10):  ##go through 10 orders
-                    BuyOrders.append(item[i]['Quantity'])
+                    BuyOrders.append(result[i]['Quantity'])
             
                 MaxQuantity = max(BuyOrders)
             
@@ -472,9 +472,9 @@ class MyPair(object):
                      
         while True: 
             
-            print("buying %.9f at %.9f" % (amount, self.tenkanSen[0]))
+            print("buying %.9f at %.9f" % (amount, self.kijunSen[0]))
             
-            data = self.account.trade_buy(self.pairName, ORDERTYPE_LIMIT, amount,self.tenkanSen[0], TIMEINEFFECT_GOOD_TIL_CANCELLED,CONDITIONTYPE_NONE, target=0.0) ##now placing sell order
+            data = self.account.trade_buy(self.pairName, ORDERTYPE_LIMIT, amount,self.kijunSen[0], TIMEINEFFECT_GOOD_TIL_CANCELLED,CONDITIONTYPE_NONE, target=0.0) ##now placing sell order
             
             if (data['success'] == True):
                 print("Buy Order in place")
@@ -532,7 +532,7 @@ while True:  ##Forever loop
     
     if (pair.signal == 1):
         pair.SellPair() ##sell signal --> sell pair
-    elif (pair.signal == 0 and pair.watch == 0):    ##buy signal --> check to buy pair
+    elif (pair.signal == 2 and pair.watch == 1):    ##buy signal --> check to buy pair
         pair.GetBuyPosition()
         if (pair.BuyPosition): ##check if we're in a buying position 
             pair.BuyPair() 
