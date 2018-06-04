@@ -106,7 +106,7 @@ class MyPair(object):
         
         while True: 
             self.account = Bittrex(self.api,self.secret, api_version=API_V2_0)
-            data = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_FIVEMIN)
+            data = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_HOUR)
         
             if (data['success'] == True and data['result']):
                 self.data = data['result']
@@ -413,8 +413,8 @@ class MyPair(object):
                             TotalBTCInOrder += float(float(self.OrderBook[i]['Quantity']) * float(float(self.OrderBook[i]['Limit'])))
                             print("Total BTC in order is: %.9f" % TotalBTCInOrder)
                     
-                        if (self.OrderBook[i]['OrderType'] == 'LIMIT_SELL'):  ##coin is allready on sell but unfinished
-                            self.BTCBalance = 0
+                        ##if (self.OrderBook[i]['OrderType'] == 'LIMIT_SELL'):  ##coin is allready on sell but unfinished
+                        ##    self.BTCBalance = 0
                         
                     break
                     
