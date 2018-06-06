@@ -26,7 +26,7 @@ def StartAllUnits():
                 print("process %s is still running with pid %d" % (data[i][0], data[i][1]))
             else:
                     print("re-running process for this component %s because PID %s doesn't exist" % (data[i][0],data[i][1]))
-                    process = subprocess.call("python ~/Fink/source/" + data[i][0] + ".py > /dev/null 2>&1 & ",  shell=True)
+                    process = subprocess.call("python ~/Doge/source/" + data[i][0] + ".py > /dev/null 2>&1 & ",  shell=True)
               
     except MySQLdb.Error as error:
         print(error)

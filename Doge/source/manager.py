@@ -155,7 +155,7 @@ class Account(object):
                 print("agent for Doge is still running with pid %d" % (data[0]))
             else:
                 print("Agent with PID: %s is not running, re-running agent for this pair BTC-DOGE" % (data[0]))
-                agent = subprocess.call("python ~/Fink/source/agent.py " + "-p BTC-DOGE > /dev/null 2>&1 & ",  shell=True)
+                agent = subprocess.call("python ~/Doge/source/agent.py > /dev/null 2>&1 & ",  shell=True)
    
         except MySQLdb.Error as error:
             print(error)

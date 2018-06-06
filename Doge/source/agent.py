@@ -187,14 +187,14 @@ class MyAccount(object):
                     break              
                     
         ##Amount = BTC Balance * Price
-        self.OrderAmount = float(self.RemainingBTC * self.BuyPrice)
+        self.OrderAmount = float(self.RemainingBTC / self.BuyPrice)
         
         print("buying DOGE at amount %.9f for price %.9f" % (self.OrderAmount, self.BuyPrice))
     
        
         while True: 
             
-            data = self.account.trade_buy("BTC-DOGE", ORDERTYPE_LIMIT,self.OrderAmount,self.BuyPrice, TIMEINEFFECT_GOOD_TIL_CANCELLED,CONDITIONTYPE_NONE, target=0.0) ##now placing sell order
+            data = self.account.trade_buy("BTC-DOGE", ORDERTYPE_LIMIT,self.OrderAmount,self.BuyPrice, TIMEINEFFECT_GOOD_TIL_CANCELLED,CONDITIONTYPE_NONE, target=0.0) ##now placing buy order
             
             if (data['success'] == True):
                 print("Buy Order in place")
