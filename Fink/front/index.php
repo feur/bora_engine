@@ -156,9 +156,9 @@ img {
 
 <?php
 
-//$fink=mysqli_connect("138.197.194.3","dev","5AKC08noMTwx9lG2","Fink");
-$fink=mysqli_connect("localhost","root","Amm02o16!","Fink");
-$edel=mysqli_connect("138.197.194.3","user","QkK9GTOQuia5DjzC","Edel");
+$fink=mysqli_connect("138.197.194.3","dev","5AKC08noMTwx9lG2","Fink");
+//$fink=mysqli_connect("localhost","root","Amm02o16!","Fink");
+//$edel=mysqli_connect("138.197.194.3","user","QkK9GTOQuia5DjzC","Edel");
 
 // Check connection
 if (mysqli_connect_errno())
@@ -276,6 +276,7 @@ mysqli_close($fink);
     
 
 <?php
+$edel=mysqli_connect("138.197.194.3","user","QkK9GTOQuia5DjzC","Edel");
 
 // Check connection
 if (mysqli_connect_errno())
