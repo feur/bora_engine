@@ -22,14 +22,14 @@ class Account(object):
             cursor.execute ("SELECT `API_Key`,`API_Secret` FROM `Settings` WHERE 1 ")
             data = cursor.fetchone()
             self.api = data[0]
-            self.secret = data[1]
+            self.key = data[1]
             
         except MySQLdb.Error as error:
            print(error)
            self.conn.close()
         
         
-        self.account = Bittrex(self.api, self.secret, api_version=API_V2_0) ##now connect to bittrex with api and key
+        self.account = Bittrex(self.api, self.key, api_version=API_V2_0) ##now connect to bittrex with api and key
             
 
     def GetCurrencyBalance(self, currency, pair):
@@ -141,21 +141,21 @@ class Account(object):
             self.conn.close()
             
             
-    def StartDogeAgent(self):
+    def StartAgent(self, pair):
     
     ##get a list of all Pairs in database and find it's pid and check it     
         cursor = self.conn.cursor()
-        query = "SELECT `PID` FROM `Pairs` WHERE Pair='BTC-DOGE'" 
+        query = "SELECT `PID` FROM `Pairs` WHERE Pair='%s'" % (pair)
   
         try:
             cursor.execute(query)
             data = cursor.fetchone()
             
             if psutil.pid_exists(data[0]):
-                print("agent for Doge is still running with pid %d" % (data[0]))
+                print("agent for %s is still running with pid %d" % (pair, data[0]))
             else:
-                print("Agent with PID: %s is not running, re-running agent for this pair BTC-DOGE" % (data[0]))
-                agent = subprocess.call("python ~/Doge/source/agent.py > /dev/null 2>&1 & ",  shell=True)
+                print("Agent with PID: %s is not running, re-running agent for this pair %s" % (data[0],pair))
+                agent = subprocess.call("python ~/Fink/source/agent.py " + "-p " + pair + " > /dev/null 2>&1 & ",  shell=True)
    
         except MySQLdb.Error as error:
             print(error)
@@ -215,8 +215,8 @@ while True:
 
     for i in range(len(ListofPairs)):
         PersonalAccount.GetCurrencyBalance(ListofCurrencies[i], ListofPairs[i])
+        PersonalAccount.StartAgent(ListofPairs[i])
     
-    PersonalAccount.StartDogeAgent()
     PersonalAccount.GetTotalBalance()
     PersonalAccount.LogAccountBalance(pid)
     

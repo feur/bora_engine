@@ -37,13 +37,6 @@ td {
 }
 
 
-.row-buy{
-  color:#00B7CF;
-}
-
-.row-sell{
-  color:#FF5615;
-}
 
 
 </style>
