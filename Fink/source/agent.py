@@ -124,7 +124,7 @@ class MyPair(object):
             if (data['success'] == True and data['result'] != None):
                 result = data['result']
                 self.balance = result['Balance']
-                self.balanceBTC = float(self.balance * self.current)
+                self.balanceBTC = float(self.balance * self.current['C'])
                 print("Balance is: %.9f or %.9f BTC") % (self.balance, self.balanceBTC)
                 break
         
@@ -144,6 +144,8 @@ class MyPair(object):
                     self.Order = 2
                 elif (order[0]['OrderType'] == 'LIMIT_SELL'):
                     self.Order = 1
+                    
+                print("There is an %s at %.9f with id: %s" % (order[0]['OrderType'],order[0]['Limit'],order[0]['OrderUuid']))
             else:
                 self.Order = 0
 
