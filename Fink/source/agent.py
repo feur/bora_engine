@@ -158,14 +158,16 @@ class MyPair(object):
             - Sell must be tenkanSen
             - Buy must be  kijunSen
         '''        
-        if (self.Order == 2 and self.OrderPrice < float(self.kijunSen[0] * 0.992)):
-            data = self.account.cancel(self.OrderID) ##Cancel that Buy Price
-            print("updating buy Order!")
-            self.BuyPair()
-        elif (self.Order == 1 and self.OrderPrice < float(self.tenkanSen[0] * 0.992)):
-            data = self.account.cancel(self.OrderID) ##Cancel that Sell Price
-            print("updating sell Order!")
-            self.SellPair()
+        if (self.Order == 2):
+            if (self.OrderPrice < float(self.kijunSen[0] * 0.992) or self.OrderPrice > float(self.kijunSen[0] * 1.008)):
+                data = self.account.cancel(self.OrderID) ##Cancel that Buy Price
+                print("updating buy Order!")
+                self.BuyPair()
+        elif (self.Order == 1):
+            if (self.OrderPrice < float(self.tenkanSen[0] * 0.992) or self.OrderPrice > float(self.tenkanSen[0] * 1.008)):
+                data = self.account.cancel(self.OrderID) ##Cancel that Sell Price
+                print("updating sell Order!")
+                self.SellPair()
         else:
             print("All Orders are okay!")
                     
