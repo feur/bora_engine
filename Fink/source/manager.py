@@ -113,6 +113,10 @@ class Account(object):
 
                 
 ##program start here
+                
+pid = os.getpid()  ##Get process pid
+ListofPairs = []   ##list of Pairs, e.g. BTC-ADA, ETH-ADA
+ListofCurrencies= [] ##list of Currencies e.g. ADA, OMG
 
 print("pid is: %d" % pid)
 

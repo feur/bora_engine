@@ -123,6 +123,7 @@ class MyPair(object):
         
             if (data['success'] == True and data['result'] != None):
                 result = data['result']
+                
                 self.balance = result['Balance']
                 self.balanceBTC = float(self.balance * self.current['C'])
                 print("Balance is: %.9f or %.9f BTC") % (self.balance, self.balanceBTC)
@@ -503,9 +504,9 @@ while True:  ##Forever loop
     if (pair.Order > 0):
         pair.UpdateOrder()
     else:
-        if (pair.active == 1 and pair.Balance < 0.01 and pair.watch == 1): ##No balance 
+        if (pair.active == 1 and pair.balance < 0.01 and pair.watch == 1): ##No balance 
             pair.BuyPair() ##put in a buy order
-        elif (pair.Balance > 0.01): ##there is balance
+        elif (pair.balance > 0.01): ##there is balance
             pair.SellPair() ##put in sell orders
     
             
