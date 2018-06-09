@@ -34,6 +34,7 @@ class MyPair(object):
         self.pairName = entry.pair
         self.conn = MySQLdb.connect(Fink_DB_HOST,Fink_DB_USER,Fink_DB_PW,Fink_DB_NAME) 
         self.edel = MySQLdb.connect(Edel_DB_HOST,Edel_DB_USER,Edel_DB_PW,Edel_DB_NAME) ##connect to edel DB
+        self.SellBuffer = 1.05
         
         ##get BuyLimit, api key and secret
         cursor = self.conn.cursor()
@@ -118,16 +119,16 @@ class MyPair(object):
             
     def GetBalance(self): 
         
-        while True: 
-            data = self.account.get_balance(self.currency)
+        data = self.account.get_balance(self.currency)
         
-            if (data['success'] == True and data['result'] != None):
-                result = data['result']
-                
-                self.balance = result['Balance']
-                self.balanceBTC = float(self.balance * self.current['C'])
-                print("Balance is: %.9f or %.9f BTC") % (self.balance, self.balanceBTC)
-                break
+        if (data['success'] == True and data['result'] != None):
+            result = data['result']           
+            self.balance = result['Balance']
+       else: 
+           self.balance = 0
+          
+        self.balanceBTC = float(self.balance * self.current['C'])
+        print("Balance is: %.9f or %.9f BTC") % (self.balance, self.balanceBTC)
         
           
           
@@ -159,13 +160,16 @@ class MyPair(object):
             - Sell must be tenkanSen
             - Buy must be  kijunSen
         '''        
-        if (self.Order == 2):
-            if (self.OrderPrice < float(self.kijunSen[0] * 0.992) or self.OrderPrice > float(self.kijunSen[0] * 1.008)):
-                data = self.account.cancel(self.OrderID) ##Cancel that Buy Price
-                print("updating buy Order!")
-                self.BuyPair()
-        elif (self.Order == 1):
-            if (self.OrderPrice < float(self.tenkanSen[0] * 0.992) or self.OrderPrice > float(self.tenkanSen[0] * 1.008)):
+        if (self.Order == 2): ## buy order
+            if (self.Buy == 1): ##its okay to buy        
+                if (self.OrderPrice < float(self.kijunSen[0] * 0.999) or self.OrderPrice > float(self.kijunSen[0] * 1.001)): ##making sure that order is in line with kijunsen
+                    data = self.account.cancel(self.OrderID) ##Cancel that Buy Price and update the order
+                    print("updating buy Order!")
+                    self.BuyPair()
+            else:
+                 data = self.account.cancel(self.OrderID) ##Cancel that Buy Price because we can't make any +%0.05 return 
+        elif (self.Order == 1): ##sell order
+            if (self.OrderPrice < float(self.tenkanSen[0] * 0.999) or self.OrderPrice > float(self.tenkanSen[0] * 1.001)): ##making sure that order is in line with tenkansen 
                 data = self.account.cancel(self.OrderID) ##Cancel that Sell Price
                 print("updating sell Order!")
                 self.SellPair()
@@ -285,7 +289,7 @@ class MyPair(object):
         else:
             self.IchState = 0
     
-        if (self.IchState == 1 and self.EMATrend == 1):
+        if (self.IchState == 1 and self.EMATrend == 1 and self.watch == 1):
             self.active = 1
             print ("Pair is active")
         else:
@@ -297,7 +301,7 @@ class MyPair(object):
     def UploadData(self):
 
         cursor = self.conn.cursor()
-        query = "UPDATE Pairs SET TradeSignal = %d, PID = %d WHERE Pair = '%s'" % (self.active,self.pid,self.pairName)
+        query = "UPDATE Pairs SET TradeSignal = %d, HoldBTC=%.9f, PID = %d WHERE Pair = '%s'" % (self.active,self.balanceBTC, self.pid,self.pairName)
 
         try:
             cursor.execute(query)
@@ -363,12 +367,13 @@ class MyPair(object):
         '''        
         ##get pair and amount to sell
         
-        amount = float(self.balance * 0.995)
-        print("selling %s of amount %.9f at %.9f" % (self.pairName, amount, self.tenkanSen[0]))
+        amount = float(self.balance * 0.999)
+        price = float(self.SellBuffer * self.tenkanSen[0])
+        print("selling %s of amount %.9f at %.9f" % (self.pairName, amount, price))
                 
         while True: 
             
-            data = self.account.trade_sell(self.pairName, ORDERTYPE_LIMIT, amount, self.tenkanSen[0], TIMEINEFFECT_GOOD_TIL_CANCELLED,CONDITIONTYPE_NONE, target=0.0) ##now placing sell order
+            data = self.account.trade_sell(self.pairName, ORDERTYPE_LIMIT, amount, price, TIMEINEFFECT_GOOD_TIL_CANCELLED,CONDITIONTYPE_NONE, target=0.0) ##now placing sell order
                     
             if (data['success'] == True):
                 print("Sell Order in place")
@@ -377,7 +382,7 @@ class MyPair(object):
             ts = time.time()
             timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
             cursor = self.conn.cursor()
-            query = "INSERT INTO `AccountHistory`(`PID`, `Pair`, `Amount`, `Price`, `Action`, `ActionTime`) VALUES (%d,'%s',%d,%.9f,'Sell','%s')" % (self.pid,self.pairName,amount,self.tenkanSen[0],timestamp)
+            query = "INSERT INTO `AccountHistory`(`PID`, `Pair`, `Amount`, `Price`, `Action`, `ActionTime`) VALUES (%d,'%s',%d,%.9f,'Sell','%s')" % (self.pid,self.pairName,amount,price,timestamp)
                         
             try:
                 cursor.execute(query)
@@ -392,77 +397,13 @@ class MyPair(object):
             
         
          
-    def GetBuyPosition(self):
+    def CheckBuyPosition(self):
         
-        ## determine whether it should be bought despite the signal
-        ## Check if theres enough balance in the first place
-        ## Go through all the pairs ordered by rating
-        ## 1. is it of the highest rating? if so yes its in a buy position
-        ## 2. Is the Pair with the highest rating allready holding something? Yes go to the next one and ask the same question
-        ## 2.a. If no then not in a buying position
-        ## 3. Are we now on the same rating? Okay we're in buy position 
-        
-      
-        ## Check BTC Balance 
-        while True:
-            data = self.account.get_balance('BTC')
-            
-            if (data['success'] == True):
-                result = data['result']
-                self.BTCBalance = float(result['Balance'])
-                break
-            
-        ##check total BTC in order 
-        TotalBTCInOrder = 0    
-        
-        
-        ##get a list of pairs (because we can't for some fucking reason just get open orders for everything)
-        
-        ListofPairs = []   ##list of Pairs, e.g. BTC-ADA, ETH-ADA
-        ListofCurrencies= [] ##list of Currencies e.g. ADA, OMG
-        
-        cursor = self.conn.cursor()
-        
-        try:
-            cursor.execute ("SELECT `Pair`, `Currency` FROM `Pairs` WHERE 1")
-            data = cursor.fetchall()
-            
-            for i in range(len(data)):
-                ListofPairs.append(str(data[i][0]))
-                ListofCurrencies.append(str(data[i][1]))
-                
-        except MySQLdb.Error as error:
-            print(error)
-            self.conn.close()
-        
-        for i in range(len(ListofPairs)):    
-            while True:    
-                data = self.account.get_open_orders(ListofPairs[i])  
-                print(data)
-                if (data['success'] == True):
-                    print("getting order books")
-                    self.OrderBook = data['result']
-                    for i in range(len(self.OrderBook)):
-                 
-                        if (self.OrderBook[i]['OrderType'] == 'LIMIT_BUY'):  ##only count unfinished buy orders
-                            TotalBTCInOrder += float(float(self.OrderBook[i]['Quantity']) * float(float(self.OrderBook[i]['Limit'])))
-                            print("Total BTC in order is: %.9f" % TotalBTCInOrder)
-                    
-                        if (self.OrderBook[i]['OrderType'] == 'LIMIT_SELL'):  ##coin is allready on sell but unfinished
-                            self.BTCBalance = 0
-                        
-                    break
-                    
-
-        self.BTCAvailable = self.BTCBalance - TotalBTCInOrder #this is to prevent multiple orders made on several coin that exceed actual balance
-             
-        print("BTC balance: %.9f" % self.BTCAvailable)
-        
-        if (self.BTCAvailable >= self.BuyLimit):
-            self.BuyPosition = 1
-        else:
-            self.BuyPosition = 0
-        
+        ##Only buy when Tenkansen is > Kijusen * 1.05 --> that way we don't incurr too much fee cost 
+        if (self.tenkanSen[0] > float(self.kijunSen[0] * 1.025)):
+            self.Buy = 1
+        else: 
+            self.Buy = 0
    
     
             
@@ -500,13 +441,14 @@ while True:  ##Forever loop
     
     pair.GetBalance() 
     pair.GetOrder()
+    pair.CheckBuyPosition()
     
     if (pair.Order > 0):
         pair.UpdateOrder()
-    else:
-        if (pair.active == 1 and pair.balance < 0.01 and pair.watch == 1): ##No balance 
+    elif (pair.Order < 0):
+        if (pair.active == 1 and pair.balanceBTC < 0.01 and pair.Buy == 1): ##No balance 
             pair.BuyPair() ##put in a buy order
-        elif (pair.balance > 0.01): ##there is balance
+        elif (pair.balanceBTC > 0.01): ##there is balance
             pair.SellPair() ##put in sell orders
     
             
