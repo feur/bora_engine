@@ -456,29 +456,28 @@ class MyPair(object):
         while True: 
             
             data = self.account.trade_sell(self.pairName, ORDERTYPE_LIMIT, amount, price, TIMEINEFFECT_GOOD_TIL_CANCELLED,CONDITIONTYPE_NONE, target=0.0) ##now placing sell order
-                    
+            
             if (data['success'] == True):
                 print("Sell Order in place")
-                        
-            	## logging action
-            	ts = time.time()
+                
+                ## logging action\
+                ts = time.time()
             	timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
             	cursor = self.conn.cursor()
-            	query = "INSERT INTO `AccountHistory`(`PID`, `Pair`, `Amount`, `Price`, `Action`, `ActionTime`) VALUES (%d,'%s',%d,%.9f,'Sell','%s')" % (self.pid,self.pairName,amount,price,timestamp)
-                        
-            	try:
-               	 cursor.execute(query)
-               	 self.conn.commit()
+            	query = "INSERT INTO `AccountHistory`(`PID`, `Pair`, `Amount`, `Price`, `Action`, `ActionTime`) VALUES (%d,'%s',%d,%.9f,'Sell','%s')" % (self.pid,self.pairName,amount,price,timestamp) 
+             
+                try:
+                    cursor.execute(query)
+                    self.conn.commit()
+                    break
         
-            	except MySQLdb.Error as error:
-               	 print(error)
-               	 self.conn.rollback()
-               	 self.conn.close()
-                 
-                 break
-	    else:
-		print(data)
-		break
+                except MySQLdb.Error as error:
+                    print(error)
+                    self.conn.rollback()
+                    self.conn.close()
+            else:
+                print(data)
+                break
             
         
          
