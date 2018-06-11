@@ -35,8 +35,9 @@ class MyPair(object):
         self.conn = MySQLdb.connect(Fink_DB_HOST,Fink_DB_USER,Fink_DB_PW,Fink_DB_NAME) 
         self.edel = MySQLdb.connect(Edel_DB_HOST,Edel_DB_USER,Edel_DB_PW,Edel_DB_NAME) ##connect to edel DB
         self.SellBuffer = 1.005
-        self.BuyBuffer = 1
+        self.BuyBuffer = 0.995
         self.tenkanSenP = 0 
+        self.cycle = 0
         
         ##get BuyLimit, api key and secret
         cursor = self.conn.cursor()
@@ -49,6 +50,7 @@ class MyPair(object):
             self.secret = data[1]
             self.BuyLimit = float(data[2])
             self.uid = data[3]
+            self.IchStatePrev = 0
         
         except MySQLdb.Error as error:
             print(error)
@@ -155,9 +157,7 @@ class MyPair(object):
 	    self.Order = 0
 
             
-            
-    
-                    
+                             
  
     def GetTrend(self):
         
@@ -248,18 +248,13 @@ class MyPair(object):
         print("DI- is: %.9f" % self.diNeg[-1])    
         print("DI+ is: %.9f" % self.diPos[-1])        
         
-        if (self.diNeg[-1] > 20 or self.diPos[-1] > 20): ## both trends are significatn
-            
-            if (self.diNeg[-1] > self.diPos[-1]): ##Downtrend
-                self.Direction = 0 
-            elif (self.diNeg[-1] == self.diPos[-1]): ##possible crossover
-                self.Direction = 0
-            else:
-                self.Direction = 1 ##uptrend 
-                
+        if (self.diNeg[-1] > self.diPos[-1]): ##Downtrend
+            self.Direction = 0 
+        elif (self.diNeg[-1] == self.diPos[-1]): ##possible crossover
+            self.Direction = 0
         else:
-            self.Direction = 1 ##no determined direction
-              
+            self.Direction = 1 ##uptrend 
+                
            
         print("Direction is: %d" % self.Direction)   
       
@@ -353,16 +348,20 @@ class MyPair(object):
             
         #find state of Tenkansen & Kijunsen as IchState
         if (self.tenkanSen[0] > self.kijunSen[0]): ##red on top of blue
-            self.IchState = 1
+            self.IchState = 2
         else:
-            self.IchState = 0
+            self.IchState = 1
+            
+       
     
-        if (self.IchState == 1 and self.Direction == 1):
+        if (self.IchState > self.IchStatePrev and self.Direction == 1 and self.IchStatePrev > 0):
             self.active = 1
             print ("Pair is active")
         else:
             print ("Pair is not active")
             self.active = 0
+            
+        self.IchStatePrev = self.IchState ##store ichstate to previous
         
                 
       
@@ -441,6 +440,8 @@ class MyPair(object):
         amount = float(self.balance * 0.999)
         price = float(self.SellBuffer * self.tenkanSen[0])
         print("selling %s of amount %.9f at %.9f" % (self.pairName, amount, price))
+        
+        self.cycle = 0 ##reset cycle
                 
         while True: 
             
@@ -480,16 +481,14 @@ class MyPair(object):
         '''
         
         
-        if (self.tenkanSen[0] > self.tenkanSenP and self.tenkanSenP > 0 and
-            self.tenkanSen[0] > float(self.kijunSen[0] * 1.0025) and 
-            self.current['C'] < self.tenkanSen[0]): 
-                self.Buy = 1
+        if ((self.tenkanSen[0] < float(self.kijunSen[0] * 1.0025)) and 
+            (self.current['C'] > self.kijunSen[0])): 
+                self.Buy = 0
         else:
-            self.Buy = 0
+            self.Buy = 1
               
         print("Buy Position: %d" % (self.Buy))
         
-        self.tenkanSenP = self.tenkanSen[0] ##store into previous value
         
         
         
@@ -500,26 +499,21 @@ class MyPair(object):
             - Sell must be tenkanSen
             - Buy must be  kijunSen
         '''        
-        if (self.Order == 2): ## buy order
-        
-            if (self.Buy == 1): ##its okay to buy  
-            
-                if (self.OrderPrice < float(self.kijunSen[0] * self.BuyBuffer) or self.OrderPrice > float(self.kijunSen[0] * self.BuyBuffer * 1.005)): ##making sure that order is in line with kijunsen
-                    data = self.account.cancel(self.OrderID) ##Cancel that Buy Price and update the order
-                    print("updating buy Order!")
-                    self.BuyPair()
-                else:
-                    print("All orders are okay!")
+        if (self.Order == 2): ## buy order            
+            self.cycle = self.cycle + 1    
+            if (self.cycle == 3600):
+                print("Cancelling order, timeout")
+                data = self.account.cancel(self.OrderID) ##Cancel that Buy Price because we can't make any +%0.05 retur
+                self.cycle = 0
             else:
-                print("Cancelling order")
-                data = self.account.cancel(self.OrderID) ##Cancel that Buy Price because we can't make any +%0.05 return 
-
+                print("buy order is still okay!")
+                
         elif (self.Order == 1): ##sell order
         
-            if (self.OrderPrice < float(self.tenkanSen[0] * self.SellBuffer) or self.OrderPrice > float(self.tenkanSen[0] * self.SellBuffer * 1.005)): ##making sure that order is in line with tenkansen 
+            if (self.OrderPrice < float(self.tenkanSen[0] * self.SellBuffer * 0.994) or self.OrderPrice > float(self.tenkanSen[0] * self.SellBuffer * 1.001)): ##making sure that order is in line with tenkansen 
                 data = self.account.cancel(self.OrderID) ##Cancel that Sell Price
                 print("updating sell Order!")
-                self.SellPair()
+                self.SellPair() ##readjust
                 
             else:
                 print("All Orders are okay!")
@@ -528,7 +522,6 @@ class MyPair(object):
                 
                       
                 
-    
 ##program start here
 
 entry = GetEntry() ##Get arguments to define Pair and Fib levels
@@ -541,7 +534,7 @@ while True:  ##Forever loop
     pair.GetWatchSignal()
 
     ##if (pair.watch):
-    ##    print("this pair needs to be watched")
+    ##   print("this pair needs to be watched")
     
     pair.GetData()
     print("current price is: %.9f" % pair.current['C'])    
@@ -570,9 +563,10 @@ while True:  ##Forever loop
         elif (pair.balanceBTC > 0.002): ##there is balance
             print("selling order")
             pair.SellPair() ##put in sell orders
-    
             
-    #pair.UploadData()  
+    
+        
+    pair.UploadData()  
     time.sleep(60) ## enoguh delay for an order to be complete
 
 
