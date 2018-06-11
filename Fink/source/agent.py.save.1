@@ -30,12 +30,11 @@ class MyPair(object):
         self.pid = os.getpid()  ##Get process pid
         print("pid is: %d" % self.pid)
 
-        self.TimeInterval = "FIVEMIN"
+        self.TimeInterval = "HOUR"
         self.pairName = entry.pair
         self.conn = MySQLdb.connect(Fink_DB_HOST,Fink_DB_USER,Fink_DB_PW,Fink_DB_NAME) 
         self.edel = MySQLdb.connect(Edel_DB_HOST,Edel_DB_USER,Edel_DB_PW,Edel_DB_NAME) ##connect to edel DB
         self.SellBuffer = 1.005
-	self.BuyBuffer = 1
         
         ##get BuyLimit, api key and secret
         cursor = self.conn.cursor()
@@ -176,7 +175,7 @@ class MyPair(object):
                  data = self.account.cancel(self.OrderID) ##Cancel that Buy Price because we can't make any +%0.05 return 
 
         elif (self.Order == 1): ##sell order
-            if (self.OrderPrice < float(self.tenkanSen[0] * 0.99) or self.OrderPrice > float(self.tenkanSen[0] * 1.01)): ##making sure that order is in line with tenkansen 
+            if (self.OrderPrice < float(self.tenkanSen[0] * 0.995) or self.OrderPrice > float(self.tenkanSen[0] * 1.005)): ##making sure that order is in line with tenkansen 
                 data = self.account.cancel(self.OrderID) ##Cancel that Sell Price
                 print("updating sell Order!")
                 self.SellPair()
@@ -334,15 +333,14 @@ class MyPair(object):
         
     
         ##Buy Price is at blue line
-	price = float(self.kijunSen[0] * self.BuyBuffer)
-        self.OrderAmount = float(self.BuyLimit/ price)
+        self.OrderAmount = float(self.BuyLimit/ self.kijunSen[0])
         
-        print("buying %s at amount %.9f for price %.9f" % (self.pairName,self.OrderAmount,price))
+        print("buying %s at amount %.9f for price %.9f" % (self.pairName,self.OrderAmount, self.kijunSen[0]))
     
        
         while True: 
             
-            data = self.account.trade_buy(self.pairName, ORDERTYPE_LIMIT,self.OrderAmount,price, TIMEINEFFECT_GOOD_TIL_CANCELLED,CONDITIONTYPE_NONE, target=0.0) ##now placing buy order
+            data = self.account.trade_buy(self.pairName, ORDERTYPE_LIMIT,self.OrderAmount,self.kijunSen[0], TIMEINEFFECT_GOOD_TIL_CANCELLED,CONDITIONTYPE_NONE, target=0.0) ##now placing buy order
             
             if (data['success'] == True):
                 print("Buy Order in place")
@@ -350,7 +348,7 @@ class MyPair(object):
                 ts = time.time()
                 timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
                 cursor = self.conn.cursor()
-                query = "INSERT INTO `AccountHistory`(`PID`, `Pair`, `Amount`, `Price`, `Action`, `ActionTime`) VALUES (%d,'%s',%d,%.9f,'Buy','%s')" % (self.pid,self.pairName,self.OrderAmount,price,timestamp)
+                query = "INSERT INTO `AccountHistory`(`PID`, `Pair`, `Amount`, `Price`, `Action`, `ActionTime`) VALUES (%d,'%s',%d,%.9f,'Buy','%s')" % (self.pid,self.pairName,self.OrderAmount,self.kijunSen[0],timestamp)
 
         
                 try:
@@ -413,7 +411,7 @@ class MyPair(object):
     def CheckBuyPosition(self):
         
         ##Only buy when Tenkansen is > Kijusen * 1.05 --> that way we don't incurr too much fee cost 
-        if (self.tenkanSen[0] > float(self.kijunSen[0] * 1.0025)):
+        if (self.tenkanSen[0] > float(self.kijunSen[0] * 1.0035)):
             self.Buy = 1
         else: 
             self.Buy = 0
@@ -461,7 +459,7 @@ while True:  ##Forever loop
 	print("will check order!")
         pair.UpdateOrder()
     elif (pair.Order == 0):
-	print("No orders detected")
+	print("No orders detected, will create an order")
 	#pair.SellPair()
         if (pair.active == 1 and pair.balanceBTC < 0.01 and pair.Buy == 1): ##No balance 
             pair.BuyPair() ##put in a buy order
@@ -471,7 +469,7 @@ while True:  ##Forever loop
     
             
     pair.UploadData()  
-    time.sleep(60) ## enoguh delay for an order to be complete
+    ##time.sleep(10) ## enoguh delay for an order to be complete
 
 
 
