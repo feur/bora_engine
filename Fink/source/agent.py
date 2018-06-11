@@ -107,27 +107,16 @@ class MyPair(object):
     def GetData(self): 
         
         self.EMA = [0,0,0,0]  ##55,21,13,8
-        self.data = []
         
         while True: 
             self.account = Bittrex(self.api,self.secret, api_version=API_V2_0)
             data = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_HOUR)
         
             if (data['success'] == True and data['result']):
-                self.Rawdata = data['result']
-
-                offset = (len(self.Rawdata) - 1) % 4
-                
-                while (offset < len(self.Rawdata)):                    
-                    self.data.append(self.Rawdata[offset])
-                    offset += 4
-                    
-                
+                self.data = data['result']
                 self.current = self.data[-1]
-                print("Current 4hr price: %.9f for pair %s" % (self.current['C'],self.pairName))                
-                
+                self.entry = entry
                 break
-    
             
     def GetBalance(self): 
         
