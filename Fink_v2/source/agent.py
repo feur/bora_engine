@@ -35,6 +35,7 @@ class MyPair(object):
         self.conn = MySQLdb.connect(Fink_DB_HOST,Fink_DB_USER,Fink_DB_PW,Fink_DB_NAME) 
         self.edel = MySQLdb.connect(Edel_DB_HOST,Edel_DB_USER,Edel_DB_PW,Edel_DB_NAME) ##connect to edel DB
         self.SellBuffer = 1.005
+        self.BuyBuffer = 1
         
         ##get BuyLimit, api key and secret
         cursor = self.conn.cursor()
@@ -108,7 +109,7 @@ class MyPair(object):
         
         while True: 
             self.account = Bittrex(self.api,self.secret, api_version=API_V2_0)
-            data = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_FIVEMIN)
+            data = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_HOUR)
         
             if (data['success'] == True and data['result']):
                 self.data = data['result']
@@ -168,15 +169,19 @@ class MyPair(object):
                     data = self.account.cancel(self.OrderID) ##Cancel that Buy Price and update the order
                     print("updating buy Order!")
                     self.BuyPair()
+		else:
+		    print("All orders are okay!")
             else:
+		 print("Cancelling order")
                  data = self.account.cancel(self.OrderID) ##Cancel that Buy Price because we can't make any +%0.05 return 
+
         elif (self.Order == 1): ##sell order
-            if (self.OrderPrice < float(self.tenkanSen[0] * 0.995) or self.OrderPrice > float(self.tenkanSen[0] * 1.005)): ##making sure that order is in line with tenkansen 
+            if (self.OrderPrice < float(self.tenkanSen[0] * 0.99) or self.OrderPrice > float(self.tenkanSen[0] * 1.01)): ##making sure that order is in line with tenkansen 
                 data = self.account.cancel(self.OrderID) ##Cancel that Sell Price
                 print("updating sell Order!")
                 self.SellPair()
-        else:
-            print("All Orders are okay!")
+            else:
+                print("All Orders are okay!")
                     
  
     def GetTrend(self):
@@ -197,6 +202,92 @@ class MyPair(object):
             self.EMATrend = 1 
             
         print("EMA Trend is: %d" % self.EMATrend)
+        
+        ###Get di+ & di- Trend
+        
+        self.diPos=[]
+        self.diNeg=[]
+        self.tr=[]
+        self.trMax=[]
+        self.dmPos=[]
+        self.dmNeg=[]
+        self.dmPosMax=[]
+        self.dmNegMax=[]
+     
+        
+        #calculate TR, dmPos, dmNeg
+        tr=[]
+        dmPos=[]
+        dmNeg=[]
+        
+        for i in range(1,len(self.data)):
+            itemP = self.data[i-1]
+            itemN = self.data[i]
+           
+            maximum = max(itemN['H'] - itemN['L'], abs(itemN['H'] - itemP['C']), abs(itemN['L'] - itemP['C']))
+            tr.append(maximum)
+            
+            if (itemN['H'] - itemP['H']) > (itemP['L'] - itemN['L']):
+                dmPos.append(max((itemN['H'] - itemP['H']), 0))
+            else:               
+                dmPos.append(0)
+                
+            if (itemP['L'] - itemN['L']) > (itemN['H'] - itemP['H']):
+                 dmNeg.append(max((itemP['L'] - itemN['L']), 0))               
+            else:
+                  dmNeg.append(0)
+               
+     
+        self.tr = tr
+        self.dmPos = dmPos
+        self.dmNeg = dmNeg
+    
+        #calculate trMax,dmPosMax,dmNegMax
+        
+        SumTrMax = 0
+        SumdmPosMax = 0
+        SumdmNegMax = 0
+        
+        
+        for i in range(13):
+             SumTrMax += self.tr[i]
+             SumdmPosMax += self.dmPos[i]
+             SumdmNegMax += self.dmNeg[i]
+             
+        self.trMax.append(SumTrMax)
+        self.dmPosMax.append(SumdmPosMax)
+        self.dmNegMax.append(SumdmNegMax) 
+        
+
+        for i in range(1,len(self.tr) - 13):
+            self.trMax.append(self.trMax[i-1] - (self.trMax[i-1]/14) + self.tr[i+13])
+            self.dmPosMax.append(self.dmPosMax[i-1] - (self.dmPosMax[i-1]/14) + self.dmPos[i+13])
+            self.dmNegMax.append(self.dmNegMax[i-1] - (self.dmNegMax[i-1]/14) + self.dmNeg[i+13])
+            
+
+        #calculate diPos & diNeg
+        for i in range(0, len(self.trMax)):
+            self.diPos.append((self.dmPosMax[i] / self.trMax[i]) * 100)
+            self.diNeg.append((self.dmNegMax[i] / self.trMax[i]) * 100)
+            
+        print("DI- is: %.9f" % self.diNeg[-1])    
+        print("DI+ is: %.9f" % self.diPos[-1])        
+        
+        if (self.diNeg[-1] > 20 or self.diPos[-1] > 20): ## both trends are significatn
+            
+            if (self.diNeg[-1] > self.diPos[-1]): ##Downtrend
+                self.Direction = 0 
+            elif (self.diNeg[-1] == self.diPos[-1]): ##possible crossover
+                self.Direction = 0
+            else:
+                self.Direction = 1 ##uptrend 
+                
+        else:
+            self.Direction = 1 ##no determined direction
+              
+           
+        print("Direction is: %d" % self.Direction)   
+      
         
 
         
@@ -291,7 +382,7 @@ class MyPair(object):
         else:
             self.IchState = 0
     
-        if (self.IchState == 1 and self.EMATrend == 1):
+        if (self.IchState == 1 and self.EMATrend == 1 and self.Direction == 1):
             self.active = 1
             print ("Pair is active")
         else:
@@ -329,14 +420,15 @@ class MyPair(object):
         
     
         ##Buy Price is at blue line
-        self.OrderAmount = float(self.BuyLimit/ self.kijunSen[0])
+	price = float(self.kijunSen[0] * self.BuyBuffer)
+        self.OrderAmount = float(self.BuyLimit/ price)
         
-        print("buying %s at amount %.9f for price %.9f" % (self.pairName,self.OrderAmount, self.kijunSen[0]))
+        print("buying %s at amount %.9f for price %.9f" % (self.pairName,self.OrderAmount,price))
     
        
         while True: 
             
-            data = self.account.trade_buy(self.pairName, ORDERTYPE_LIMIT,self.OrderAmount,self.kijunSen[0], TIMEINEFFECT_GOOD_TIL_CANCELLED,CONDITIONTYPE_NONE, target=0.0) ##now placing buy order
+            data = self.account.trade_buy(self.pairName, ORDERTYPE_LIMIT,self.OrderAmount,price, TIMEINEFFECT_GOOD_TIL_CANCELLED,CONDITIONTYPE_NONE, target=0.0) ##now placing buy order
             
             if (data['success'] == True):
                 print("Buy Order in place")
@@ -344,7 +436,7 @@ class MyPair(object):
                 ts = time.time()
                 timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
                 cursor = self.conn.cursor()
-                query = "INSERT INTO `AccountHistory`(`PID`, `Pair`, `Amount`, `Price`, `Action`, `ActionTime`) VALUES (%d,'%s',%d,%.9f,'Buy','%s')" % (self.pid,self.pairName,self.OrderAmount,self.kijunSen[0],timestamp)
+                query = "INSERT INTO `AccountHistory`(`PID`, `Pair`, `Amount`, `Price`, `Action`, `ActionTime`) VALUES (%d,'%s',%d,%.9f,'Buy','%s')" % (self.pid,self.pairName,self.OrderAmount,price,timestamp)
 
         
                 try:
@@ -357,7 +449,6 @@ class MyPair(object):
                     self.conn.rollback()
                     self.conn.close()
 	    else:
-		print(data)
 		break
         
         
@@ -382,7 +473,6 @@ class MyPair(object):
                     
             if (data['success'] == True):
                 print("Sell Order in place")
-	    
                         
             	## logging action
             	ts = time.time()
@@ -394,24 +484,27 @@ class MyPair(object):
                	 cursor.execute(query)
                	 self.conn.commit()
         
-        	    xcept MySQLdb.Error as error:
-                print(error)
-                self.conn.rollback()
-                self.conn.close()
-                        
-            break
+            	except MySQLdb.Error as error:
+               	 print(error)
+               	 self.conn.rollback()
+               	 self.conn.close()
+                 
+                 break
+	    else:
+		print(data)
+		break
             
         
          
     def CheckBuyPosition(self):
         
         ##Only buy when Tenkansen is > Kijusen * 1.05 --> that way we don't incurr too much fee cost 
-        if (self.tenkanSen[0] > float(self.kijunSen[0] * 1.0035)):
+        if (self.tenkanSen[0] > float(self.kijunSen[0] * 1.0025)):
             self.Buy = 1
         else: 
             self.Buy = 0
-   
-	print("Buy Position: %d" % (self.Buy))
+            
+        print("Buy Position: %d" % (self.Buy))
     
             
                 
@@ -451,10 +544,10 @@ while True:  ##Forever loop
     pair.CheckBuyPosition()
     
     if (pair.Order > 0):
+        print("will check order!")
         pair.UpdateOrder()
     elif (pair.Order == 0):
-	print("No orders detected, will create an order")
-	#pair.SellPair()
+        print("No orders detected")
         if (pair.active == 1 and pair.balanceBTC < 0.01 and pair.Buy == 1): ##No balance 
             pair.BuyPair() ##put in a buy order
         elif (pair.balanceBTC > 0.002): ##there is balance
@@ -463,7 +556,7 @@ while True:  ##Forever loop
     
             
     pair.UploadData()  
-    ##time.sleep(10) ## enoguh delay for an order to be complete
+    time.sleep(60) ## enoguh delay for an order to be complete
 
 
 
