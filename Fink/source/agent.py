@@ -30,12 +30,12 @@ class MyPair(object):
         self.pid = os.getpid()  ##Get process pid
         print("pid is: %d" % self.pid)
 
-        self.TimeInterval = "FIVEMIN"
+        self.TimeInterval = "HOUR"
         self.pairName = entry.pair
         self.conn = MySQLdb.connect(Fink_DB_HOST,Fink_DB_USER,Fink_DB_PW,Fink_DB_NAME) 
         self.edel = MySQLdb.connect(Edel_DB_HOST,Edel_DB_USER,Edel_DB_PW,Edel_DB_NAME) ##connect to edel DB
-        self.SellBuffer = 1.005
-        self.BuyBuffer = 0.995
+        self.SellBuffer = 1.01
+        self.BuyBuffer = 0.9975
         self.tenkanSenP = 0 
         self.cycle = 0
         
@@ -355,7 +355,7 @@ class MyPair(object):
         print("Ichstate: %d, previous: %d" % (self.IchState, self.IchStatePrev))    
        
     
-        if (self.IchState > self.IchStatePrev and self.Direction == 1 and self.IchStatePrev > 0):
+        if (self.IchState == 2 and self.Direction == 1):
             self.active = 1
             print ("Pair is active")
         else:
@@ -482,8 +482,10 @@ class MyPair(object):
         '''
         
         
-        if ((self.tenkanSen[0] < float(self.kijunSen[0] * 1.0025)) or
-            (self.current['C'] > self.kijunSen[0])): 
+        if ((self.tenkanSen[0] < float(self.kijunSen[0] * 1.0035)) or
+            (self.current['O'] > self.kijunSen[0]) or
+            (self.current['C'] < self.kijunSen[0]) or
+            (self.current['C'] < self.current['O'])):
                 self.Buy = 0
         else:
             self.Buy = 1
