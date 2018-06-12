@@ -352,6 +352,7 @@ class MyPair(object):
         else:
             self.IchState = 1
             
+        print("Ichstate: %d, previous: %d" % (self.IchState, self.IchStatePrev))    
        
     
         if (self.IchState > self.IchStatePrev and self.Direction == 1 and self.IchStatePrev > 0):
@@ -394,7 +395,7 @@ class MyPair(object):
         
     
         ##Buy Price is at blue line
-	price = float(self.kijunSen[0] * self.BuyBuffer)
+        price = float(self.kijunSen[0] * self.BuyBuffer)
         self.OrderAmount = float(self.BuyLimit/ price)
         
         print("buying %s at amount %.9f for price %.9f" % (self.pairName,self.OrderAmount,price))
@@ -481,7 +482,7 @@ class MyPair(object):
         '''
         
         
-        if ((self.tenkanSen[0] < float(self.kijunSen[0] * 1.0025)) and 
+        if ((self.tenkanSen[0] < float(self.kijunSen[0] * 1.0025)) or
             (self.current['C'] > self.kijunSen[0])): 
                 self.Buy = 0
         else:
@@ -501,7 +502,8 @@ class MyPair(object):
         '''        
         if (self.Order == 2): ## buy order            
             self.cycle = self.cycle + 1    
-            if (self.cycle == 3600):
+            print("cycle is at: %d" % (self.cycle))
+            if (self.cycle == 60):
                 print("Cancelling order, timeout")
                 data = self.account.cancel(self.OrderID) ##Cancel that Buy Price because we can't make any +%0.05 retur
                 self.cycle = 0
@@ -517,6 +519,24 @@ class MyPair(object):
                 
             else:
                 print("All Orders are okay!")
+                
+                
+    def Action(self):
+        
+        if (self.Order > 0):
+            print("will check order!")
+            self.UpdateOrder()
+            
+        elif (self.Order == 0):
+                print("No orders detected")
+                
+                if (self.active == 1 and self.balanceBTC < 0.01 and self.Buy == 1): ##No balance 
+                    self.BuyPair() ##put in a buy order
+                elif (self.balanceBTC > 0.002): ##there is balance
+                    print("selling order")
+                    self.SellPair() ##put in sell orders
+        
+        self.UploadData()  
     
             
                 
@@ -552,21 +572,9 @@ while True:  ##Forever loop
     pair.GetBalance() 
     pair.GetOrder()
     pair.CheckBuyPosition()
+   # pair.Action()
     
-    if (pair.Order > 0):
-        print("will check order!")
-        pair.UpdateOrder()
-    elif (pair.Order == 0):
-        print("No orders detected")
-        if (pair.active == 1 and pair.balanceBTC < 0.01 and pair.Buy == 1): ##No balance 
-            pair.BuyPair() ##put in a buy order
-        elif (pair.balanceBTC > 0.002): ##there is balance
-            print("selling order")
-            pair.SellPair() ##put in sell orders
-            
-    
-        
-    pair.UploadData()  
+   
     time.sleep(60) ## enoguh delay for an order to be complete
 
 
