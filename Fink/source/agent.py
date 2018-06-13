@@ -37,7 +37,6 @@ class MyPair(object):
         self.SellBuffer = 1.01
         self.BuyBuffer = 0.9975
         self.tenkanSenP = 0 
-        self.cycle = 0
         
         ##get BuyLimit, api key and secret
         cursor = self.conn.cursor()
@@ -51,6 +50,7 @@ class MyPair(object):
             self.BuyLimit = float(data[2])
             self.uid = data[3]
             self.IchStatePrev = 0
+            self.entry = entry
         
         except MySQLdb.Error as error:
             print(error)
@@ -117,7 +117,8 @@ class MyPair(object):
             if (data['success'] == True and data['result']):
                 self.data = data['result']
                 self.current = self.data[-1]
-                self.entry = entry
+                self.prev = self.data[-2]
+                
                 break
             
     def GetBalance(self): 
@@ -348,14 +349,14 @@ class MyPair(object):
             
         #find state of Tenkansen & Kijunsen as IchState
         if (self.tenkanSen[0] > self.kijunSen[0]): ##red on top of blue
-            self.IchState = 2
-        else:
             self.IchState = 1
+        else:
+            self.IchState = 0
             
         print("Ichstate: %d, previous: %d" % (self.IchState, self.IchStatePrev))    
        
     
-        if (self.IchState == 2 and self.Direction == 1):
+        if (self.IchState == 1 and self.Direction == 1):
             self.active = 1
             print ("Pair is active")
         else:
@@ -363,6 +364,26 @@ class MyPair(object):
             self.active = 0
             
         self.IchStatePrev = self.IchState ##store ichstate to previous
+        
+    
+    def GetCandleState(self):
+        
+        '''
+        This verifies if we're entering the Ichstate properly
+        '''
+        
+        print("previous low: %.9f" %(self.prev['L']))
+        print("current open: %.9f" %(self.current['O']))
+        print("current close: %.9f" %(self.current['C']))
+        
+        if ((self.prev['L'] < self.current['O']) and
+        (self.current['C'] > self.current['O']) and 
+        (self.current['C'] > self.kijunSen[0])):
+            self.CandleState = 1
+        else:
+            self.CandleState = 0
+        
+        print("CandleState: %d" % (self.CandleState))
         
                 
       
@@ -423,8 +444,8 @@ class MyPair(object):
                     print(error)
                     self.conn.rollback()
                     self.conn.close()
-	    else:
-		break
+            else: 
+                break
         
         
                         
@@ -442,7 +463,6 @@ class MyPair(object):
         price = float(self.SellBuffer * self.tenkanSen[0])
         print("selling %s of amount %.9f at %.9f" % (self.pairName, amount, price))
         
-        self.cycle = 0 ##reset cycle
                 
         while True: 
             
@@ -481,14 +501,31 @@ class MyPair(object):
         self.current['C'] < self.tenkanSen[0]  (if price is hovering above )
         '''
         
+        self.GetTrend()
+        self.GetActive()
+        self.GetCandleState()
         
-        if ((self.tenkanSen[0] < float(self.kijunSen[0] * 1.0035)) or
-            (self.current['O'] > self.kijunSen[0]) or
-            (self.current['C'] < self.kijunSen[0]) or
-            (self.current['C'] < self.current['O'])):
-                self.Buy = 0
-        else:
+        if ((self.tenkanSen[0] > float(self.kijunSen[0] * 1.0035)) and self.active == 1 and self.CandleState == 1):
             self.Buy = 1
+            
+            ts = time.time()
+            timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+            cursor = self.conn.cursor()
+            query = "INSERT INTO `AccountHistory`(`PID`, `Pair`, `Amount`, `Price`, `Action`, `ActionTime`) VALUES (%d,'%s',Null,Null,'Active','%s')" % (self.pid,self.pairName,timestamp)
+
+        
+            try:
+                cursor.execute(query)
+                self.conn.commit()
+                break
+    
+            except MySQLdb.Error as error:
+                print(error)
+                self.conn.rollback()
+                self.conn.close()
+    
+        else:
+            self.Buy = 0
               
         print("Buy Position: %d" % (self.Buy))
         
@@ -502,13 +539,10 @@ class MyPair(object):
             - Sell must be tenkanSen
             - Buy must be  kijunSen
         '''        
-        if (self.Order == 2): ## buy order            
-            self.cycle = self.cycle + 1    
-            print("cycle is at: %d" % (self.cycle))
-            if (self.cycle == 60):
+        if (self.Order == 2): ## buy order
+            if (self.Buy == 0):
                 print("Cancelling order, timeout")
                 data = self.account.cancel(self.OrderID) ##Cancel that Buy Price because we can't make any +%0.05 retur
-                self.cycle = 0
             else:
                 print("buy order is still okay!")
                 
@@ -532,7 +566,7 @@ class MyPair(object):
         elif (self.Order == 0):
                 print("No orders detected")
                 
-                if (self.active == 1 and self.balanceBTC < 0.01 and self.Buy == 1): ##No balance 
+                if (self.balanceBTC < 0.01 and self.Buy == 1): ##No balance 
                     self.BuyPair() ##put in a buy order
                 elif (self.balanceBTC > 0.002): ##there is balance
                     print("selling order")
@@ -568,12 +602,10 @@ while True:  ##Forever loop
         break
     
     
-    pair.GetTrend()
-    pair.GetActive()
-    
     pair.GetBalance() 
-    pair.GetOrder()
     pair.CheckBuyPosition()
+    
+    pair.GetOrder()
    # pair.Action()
     
    
