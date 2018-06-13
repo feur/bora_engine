@@ -34,8 +34,8 @@ class MyPair(object):
         self.pairName = entry.pair
         self.conn = MySQLdb.connect(Fink_DB_HOST,Fink_DB_USER,Fink_DB_PW,Fink_DB_NAME) 
         self.edel = MySQLdb.connect(Edel_DB_HOST,Edel_DB_USER,Edel_DB_PW,Edel_DB_NAME) ##connect to edel DB
-        self.SellBuffer = 1.01
-        self.BuyBuffer = 0.9975
+        self.SellBuffer = 1.0085
+        self.BuyBuffer = 0
         self.tenkanSenP = 0 
         
         ##get BuyLimit, api key and secret
@@ -118,8 +118,10 @@ class MyPair(object):
                 self.data = data['result']
                 self.current = self.data[-1]
                 self.prev = self.data[-2]
-                
-                break
+            
+            break
+        
+     
             
     def GetBalance(self): 
         
@@ -299,7 +301,7 @@ class MyPair(object):
      
         y = len(self.data)
         
-        period = 2
+        period = 9
         
         for x in range (y/period):  
             
@@ -312,7 +314,7 @@ class MyPair(object):
             lowest *= 0
                     
          
-        period = 8
+        period = 26
         
         for x in range (y/period):  
             
@@ -325,7 +327,7 @@ class MyPair(object):
             lowest *= 0
                     
        
-        period = 16
+        period = 52
         
         for x in range (y/period):  
             
@@ -338,7 +340,7 @@ class MyPair(object):
             lowest *= 0
             
             
-        period = 8
+        period = 26
         
         for x in range(period-1):
             self.senkouA.append((self.tenkanSen[x] + self.kijunSen[x])/ 2)
@@ -373,12 +375,10 @@ class MyPair(object):
         '''
         
         print("previous low: %.9f" %(self.prev['L']))
+        print("previous open: %.9f" %(self.prev['O']))
         print("current open: %.9f" %(self.current['O']))
-        print("current close: %.9f" %(self.current['C']))
         
-        if ((self.prev['L'] < self.current['O']) and
-        (self.current['C'] > self.current['O']) and 
-        (self.current['C'] > self.kijunSen[0])):
+        if ((self.current['O'] < self.kijunSen[0])):
             self.CandleState = 1
         else:
             self.CandleState = 0
@@ -505,7 +505,7 @@ class MyPair(object):
         self.GetActive()
         self.GetCandleState()
         
-        if ((self.tenkanSen[0] > float(self.kijunSen[0] * 1.0035)) and self.active == 1 and self.CandleState == 1):
+        if (self.active == 1 and self.CandleState == 1):
             self.Buy = 1
             
             ts = time.time()
@@ -517,7 +517,7 @@ class MyPair(object):
             try:
                 cursor.execute(query)
                 self.conn.commit()
-                break
+                
     
             except MySQLdb.Error as error:
                 print(error)
@@ -572,7 +572,7 @@ class MyPair(object):
                     print("selling order")
                     self.SellPair() ##put in sell orders
         
-        self.UploadData()  
+         
     
             
                 
@@ -607,7 +607,7 @@ while True:  ##Forever loop
     
     pair.GetOrder()
    # pair.Action()
-    
+    pair.UploadData() 
    
     time.sleep(60) ## enoguh delay for an order to be complete
 

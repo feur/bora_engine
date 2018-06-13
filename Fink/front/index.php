@@ -156,8 +156,8 @@ img {
 
 <?php
 
-//$fink=mysqli_connect("138.197.194.3","dev","5AKC08noMTwx9lG2","Fink");
-$fink=mysqli_connect("localhost","root","Amm02o16!","Fink");
+$fink=mysqli_connect("138.197.194.3","dev","5AKC08noMTwx9lG2","Fink");
+//$fink=mysqli_connect("localhost","root","Amm02o16!","Fink");
 
 // Check connection
 if (mysqli_connect_errno())
