@@ -601,7 +601,7 @@ class MyPair(object):
                 print("Experimental Sell order in at %.9f" % (self.ExSellPrice))
             
         if (self.ExOrder == 2): ## buy order
-            if (self.ExPrice < self.current['C'] and self.ExPrice > self.current['O']):
+            if (self.ExBuyPrice < self.current['C'] and self.ExBuyPrice > self.current['O']):
                 print ("Buy complete")
                 self.ExOrder = 0
                 self.Exhold = 1
@@ -627,8 +627,8 @@ class MyPair(object):
                 self.ExBuyPrice = self.kijunSen[0] ##buy price adjusted
                 
         if (self.ExOrder == 1): #sell order
-            if ((self.ExPrice < self.current['C'] and self.ExPrice > self.current['O']) or
-            (self.ExPrice < self.current['C'] and self.ExPrice > self.current['O'])): 
+            if ((self.ExSellPrice < self.current['C'] and self.ExSellPrice > self.current['O']) or
+            (self.ExSellPrice < self.current['C'] and self.ExSellPrice > self.current['O'])): 
                 self.ExReturn = float(self.ExSellPrice / self.ExBuyPrice - 1.005)
                 print ("Sell Complete -- > Return: %.9f" % (self.ExReturn))
                 self.ExOrder = 0
