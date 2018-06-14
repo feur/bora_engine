@@ -35,7 +35,7 @@ class MyPair(object):
         self.conn = MySQLdb.connect(Fink_DB_HOST,Fink_DB_USER,Fink_DB_PW,Fink_DB_NAME) 
         self.edel = MySQLdb.connect(Edel_DB_HOST,Edel_DB_USER,Edel_DB_PW,Edel_DB_NAME) ##connect to edel DB
         self.SellBuffer = 1.005
-        self.BuyBuffer = 0.0025
+        self.BuyBuffer = 0.9975
         self.tenkanSenP = 0 
         
         
@@ -386,7 +386,7 @@ class MyPair(object):
         print("current close: %.9f" %(self.prev['C']))
         print("current high: %.9f" %(self.current['H']))
         
-        if ((self.current['O'] < self.kijunSen[0] * 0.997) and (self.current['C'] < self.kijunSen[0])) and (self.current['C'] > self.current['O']):
+        if ((self.current['O'] < self.kijunSen[0] * 0.997) and (self.current['C'] < self.tenkanSen[0])) and (self.current['C'] > self.current['O']):
             self.CandleState = 1
         else:
             self.CandleState = 0
@@ -623,9 +623,12 @@ class MyPair(object):
                     self.conn.rollback()
                     self.conn.close()
                     
-            else: 
-                self.ExBuyPrice = self.kijunSen[0] ##buy price adjusted
-                print("re-adjusting buy price to %.9f") % (self.ExBuyPrice)
+            else:
+                if (self.Buy == 0):
+                    self.ExOrder = 0
+                else:
+                    self.ExBuyPrice = self.kijunSen[0] ##buy price adjusted
+                    print("re-adjusting buy price to %.9f") % (self.ExBuyPrice)
                 
         elif (self.ExOrder == 1): #sell order
         
@@ -654,9 +657,12 @@ class MyPair(object):
                     self.conn.close()
                     
             else:
-                
-                self.ExSellPrice = self.tenkanSen[0] * self.SellBuffer ##sell buffer
-                print("re-adjusting sell price to %.9f") % (self.ExSellPrice)
+                if (self.IchState == 1):
+                    self.ExSellPrice = self.tenkanSen[0] * self.SellBuffer ##sell buffer
+                    print("re-adjusting sell price to %.9f") % (self.ExSellPrice)
+                elif (self.IchState == 0): 
+                    self.ExSellPrice = self.kijunSen[0]
+                    print("re-adjusting sell price to %.9f") % (self.ExSellPrice)
             
                 
                 
