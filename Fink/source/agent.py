@@ -34,8 +34,8 @@ class MyPair(object):
         self.pairName = entry.pair
         self.conn = MySQLdb.connect(Fink_DB_HOST,Fink_DB_USER,Fink_DB_PW,Fink_DB_NAME) 
         self.edel = MySQLdb.connect(Edel_DB_HOST,Edel_DB_USER,Edel_DB_PW,Edel_DB_NAME) ##connect to edel DB
-        self.SellBuffer = 1.01
-        self.BuyBuffer = 1
+        self.SellBuffer = 1.005
+        self.BuyBuffer = 0.0025
         self.tenkanSenP = 0 
         
         
@@ -386,7 +386,7 @@ class MyPair(object):
         print("current close: %.9f" %(self.prev['C']))
         print("current high: %.9f" %(self.current['H']))
         
-        if ((self.current['O'] < float(self.kijunSen[0] * 0.997)) and (self.current['C'] < self.kijunSen[0])) and (self.current['C'] > self.current['O']):
+        if ((self.current['O'] < self.kijunSen[0] * 0.997) and (self.current['C'] < self.kijunSen[0])) and (self.current['C'] > self.current['O']):
             self.CandleState = 1
         else:
             self.CandleState = 0
