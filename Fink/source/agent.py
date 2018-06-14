@@ -30,13 +30,21 @@ class MyPair(object):
         self.pid = os.getpid()  ##Get process pid
         print("pid is: %d" % self.pid)
 
-        self.TimeInterval = "HOUR"
+        self.TimeInterval = "FIVEMIN"
         self.pairName = entry.pair
         self.conn = MySQLdb.connect(Fink_DB_HOST,Fink_DB_USER,Fink_DB_PW,Fink_DB_NAME) 
         self.edel = MySQLdb.connect(Edel_DB_HOST,Edel_DB_USER,Edel_DB_PW,Edel_DB_NAME) ##connect to edel DB
-        self.SellBuffer = 1.0085
-        self.BuyBuffer = 0
+        self.SellBuffer = 1.0025
+        self.BuyBuffer = 1
         self.tenkanSenP = 0 
+        
+        
+        ##experimental stuff
+        self.ExBuyPrice = 0
+        self.Exhold = 0
+        self.ExOrder = 0
+        self.ExReturn = 0
+        self.ExSellPrice = 0
         
         ##get BuyLimit, api key and secret
         cursor = self.conn.cursor()
@@ -112,7 +120,7 @@ class MyPair(object):
         
         while True: 
             self.account = Bittrex(self.api,self.secret, api_version=API_V2_0)
-            data = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_HOUR)
+            data = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_FIVEMIN)
         
             if (data['success'] == True and data['result']):
                 self.data = data['result']
@@ -301,7 +309,7 @@ class MyPair(object):
      
         y = len(self.data)
         
-        period = 9
+        period = 8
         
         for x in range (y/period):  
             
@@ -314,7 +322,7 @@ class MyPair(object):
             lowest *= 0
                     
          
-        period = 26
+        period = 32
         
         for x in range (y/period):  
             
@@ -511,7 +519,8 @@ class MyPair(object):
             ts = time.time()
             timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
             cursor = self.conn.cursor()
-            query = "INSERT INTO `AccountHistory`(`PID`, `Pair`, `Amount`, `Price`, `Action`, `ActionTime`) VALUES (%d,'%s',Null,Null,'Active','%s')" % (self.pid,self.pairName,timestamp)
+            query = ("INSERT INTO `SignalLog`(`Pair`, `BuyPrice`, `SellPrice`, `TimeInterval`, `Time`) VALUES ('%s',%.9f,%.9f,'%s','%s')" % 
+            (self.pairName,float(self.kijunSen[0] * self.BuyBuffer), float(self.tenkanSen[0] * self.SellBuffer),self.TimeInterval,timestamp))
 
         
             try:
@@ -571,6 +580,81 @@ class MyPair(object):
                 elif (self.balanceBTC > 0.002): ##there is balance
                     print("selling order")
                     self.SellPair() ##put in sell orders
+                    
+                    
+    def ExAction(self):
+        
+        '''
+            Experimental Stuff
+        '''
+        
+        if (self.ExOrder == 0):
+            
+            if (self.Exhold == 0 and self.Buy == 1):
+                self.ExOrder = 2 ##buy
+                self.ExBuyPrice = self.kijunSen[0] * self.BuyBuffer ##buy price
+                print("Experimental Buy order in at %.9f" % (self.ExBuyPrice))
+             
+            if (self.Exhold == 1):
+                self.ExOrder == 1
+                self.ExSellPrice = self.tenkanSen[0] * self.SellBuffer ##sell buffer
+                print("Experimental Sell order in at %.9f" % (self.ExSellPrice))
+            
+        if (self.ExOrder == 2): ## buy order
+            if (self.ExPrice < self.current['C'] and self.ExPrice > self.current['O']):
+                print ("Buy complete")
+                self.ExOrder = 0
+                self.Exhold = 1
+                
+                ##log the action
+                ts = time.time()
+                timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+                cursor = self.conn.cursor()
+                query = "INSERT INTO `ExLog`(`Pair`, `Action`, `Price`, `Profit`, `Time`) VALUES ('%s','Buy',%.9f,0,'%s')" % (self.pairName,self.ExBuyPrice,timestamp)
+
+        
+                try:
+                    cursor.execute(query)
+                    self.conn.commit()
+                
+    
+                except MySQLdb.Error as error:
+                    print(error)
+                    self.conn.rollback()
+                    self.conn.close()
+                    
+            else: 
+                self.ExBuyPrice = self.kijunSen[0] ##buy price adjusted
+                
+        if (self.ExOrder == 1): #sell order
+            if ((self.ExPrice < self.current['C'] and self.ExPrice > self.current['O']) or
+            (self.ExPrice < self.current['C'] and self.ExPrice > self.current['O'])): 
+                self.ExReturn = float(self.ExSellPrice / self.ExBuyPrice - 1.005)
+                print ("Sell Complete -- > Return: %.9f" % (self.ExReturn))
+                self.ExOrder = 0
+                self.Exhold = 0
+                
+                ##log the action
+                ts = time.time()
+                timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+                cursor = self.conn.cursor()
+                query = "INSERT INTO `ExLog`(`Pair`, `Action`, `Price`, `Profit`, `Time`) VALUES ('%s','SELL',%.9f,%.9f,'%s')" % (self.pairName,self.ExBuyPrice,self.ExReturn,timestamp)
+
+        
+                try:
+                    cursor.execute(query)
+                    self.conn.commit()
+                
+    
+                except MySQLdb.Error as error:
+                    print(error)
+                    self.conn.rollback()
+                    self.conn.close()
+            else:
+                self.ExSellPrice = self.tenkanSen[0] * self.SellBuffer ##sell buffer
+            
+                
+                
         
          
     
@@ -607,6 +691,7 @@ while True:  ##Forever loop
     
     pair.GetOrder()
    # pair.Action()
+    pair.ExAction()
     pair.UploadData() 
    
     time.sleep(60) ## enoguh delay for an order to be complete
