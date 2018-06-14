@@ -382,9 +382,9 @@ class MyPair(object):
         This verifies if we're entering the Ichstate properly
         '''
         
-        print("previous low: %.9f" %(self.prev['L']))
-        print("previous open: %.9f" %(self.prev['O']))
-        print("current open: %.9f" %(self.current['O']))
+        print("current low: %.9f" %(self.prev['L']))
+        print("current close: %.9f" %(self.prev['C']))
+        print("current high: %.9f" %(self.current['H']))
         
         if ((self.current['O'] < self.kijunSen[0])):
             self.CandleState = 1
@@ -596,12 +596,12 @@ class MyPair(object):
                 print("Experimental Buy order in at %.9f" % (self.ExBuyPrice))
              
             if (self.Exhold == 1):
-                self.ExOrder == 1
+                self.ExOrder = 1
                 self.ExSellPrice = self.tenkanSen[0] * self.SellBuffer ##sell buffer
                 print("Experimental Sell order in at %.9f" % (self.ExSellPrice))
             
-        if (self.ExOrder == 2): ## buy order
-            if (self.ExBuyPrice < self.current['C'] and self.ExBuyPrice > self.current['O']):
+        elif (self.ExOrder == 2): ## buy order
+            if (self.ExBuyPrice > self.current['L']):
                 print ("Buy complete")
                 self.ExOrder = 0
                 self.Exhold = 1
@@ -625,14 +625,13 @@ class MyPair(object):
                     
             else: 
                 self.ExBuyPrice = self.kijunSen[0] ##buy price adjusted
+                print("re-adjusting buy price to %.9f") % (self.ExBuyPrice)
                 
-        if (self.ExOrder == 1): #sell order
-            if ((self.ExSellPrice < self.current['C'] and self.ExSellPrice > self.current['O']) or
-            (self.ExSellPrice < self.current['C'] and self.ExSellPrice > self.current['O'])): 
+        elif (self.ExOrder == 1): #sell order
+        
+            if (self.ExSellPrice < self.current['H']):
                 self.ExReturn = float(self.ExSellPrice / self.ExBuyPrice - 1.005)
                 print ("Sell Complete -- > Return: %.9f" % (self.ExReturn))
-                self.ExOrder = 0
-                self.Exhold = 0
                 
                 ##log the action
                 ts = time.time()
@@ -644,14 +643,20 @@ class MyPair(object):
                 try:
                     cursor.execute(query)
                     self.conn.commit()
+                    self.ExOrder = 0
+                    self.Exhold = 0
+                
                 
     
                 except MySQLdb.Error as error:
                     print(error)
                     self.conn.rollback()
                     self.conn.close()
+                    
             else:
+                
                 self.ExSellPrice = self.tenkanSen[0] * self.SellBuffer ##sell buffer
+                print("re-adjusting sell price to %.9f") % (self.ExSellPrice)
             
                 
                 
