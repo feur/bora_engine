@@ -35,7 +35,7 @@ class MyPair(object):
         self.conn = MySQLdb.connect(Fink_DB_HOST,Fink_DB_USER,Fink_DB_PW,Fink_DB_NAME) 
         self.edel = MySQLdb.connect(Edel_DB_HOST,Edel_DB_USER,Edel_DB_PW,Edel_DB_NAME) ##connect to edel DB
         self.SellBuffer = 1.005
-        self.BuyBuffer = 0.9975
+        self.BuyBuffer = 0.995
         self.tenkanSenP = 0 
         
         
@@ -590,12 +590,12 @@ class MyPair(object):
         
         if (self.ExOrder == 0):
             
-            if (self.Exhold == 0 and self.Buy == 1):
+            if (self.Exhold == 0 and self.IchState == 0 and self.current['H'] < float(self.tenkanSen[0] * self.BuyBuffer)):
                 self.ExOrder = 2 ##buy
-                self.ExBuyPrice = self.kijunSen[0] * self.BuyBuffer ##buy price
+                self.ExBuyPrice = self.tenkanSen[0] * self.BuyBuffer ##buy price
                 print("Experimental Buy order in at %.9f" % (self.ExBuyPrice))
              
-            if (self.Exhold == 1):
+            if (self.Exhold == 1 and self.IchState == 1):
                 self.ExOrder = 1
                 self.ExSellPrice = self.tenkanSen[0] * self.SellBuffer ##sell buffer
                 print("Experimental Sell order in at %.9f" % (self.ExSellPrice))
@@ -624,7 +624,7 @@ class MyPair(object):
                     self.conn.close()
                     
             else:
-                if (self.Buy == 0):
+                if (self.IchState == 1 or self.current['H'] > float(self.tenkanSen[0] * self.BuyBuffer)):
                     self.ExOrder = 0
                 else:
                     self.ExBuyPrice = self.kijunSen[0] ##buy price adjusted
