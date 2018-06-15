@@ -590,12 +590,12 @@ class MyPair(object):
         
         if (self.ExOrder == 0):
             
-            if (self.Exhold == 0 and self.IchState == 0 and self.current['H'] < float(self.tenkanSen[0] * self.BuyBuffer)):
+            if (self.Exhold == 0 and self.active == 0 and self.current['L'] < float(self.tenkanSen[0] * self.BuyBuffer)):
                 self.ExOrder = 2 ##buy
                 self.ExBuyPrice = self.tenkanSen[0] * self.BuyBuffer ##buy price
                 print("Experimental Buy order in at %.9f" % (self.ExBuyPrice))
              
-            if (self.Exhold == 1 and self.IchState == 1):
+            if (self.Exhold == 1 and self.active == 1):
                 self.ExOrder = 1
                 self.ExSellPrice = self.tenkanSen[0] * self.SellBuffer ##sell buffer
                 print("Experimental Sell order in at %.9f" % (self.ExSellPrice))
@@ -624,10 +624,10 @@ class MyPair(object):
                     self.conn.close()
                     
             else:
-                if (self.IchState == 1 or self.current['H'] > float(self.tenkanSen[0] * self.BuyBuffer)):
+                if (self.active == 1 or self.current['L'] > float(self.tenkanSen[0] * self.BuyBuffer)):
                     self.ExOrder = 0
                 else:
-                    self.ExBuyPrice = self.kijunSen[0] ##buy price adjusted
+                    self.ExBuyPrice = self.tenkanSen[0] * self.BuyBuffer ##buy price
                     print("re-adjusting buy price to %.9f") % (self.ExBuyPrice)
                 
         elif (self.ExOrder == 1): #sell order
@@ -649,20 +649,17 @@ class MyPair(object):
                     self.ExOrder = 0
                     self.Exhold = 0
                 
-                
-    
                 except MySQLdb.Error as error:
                     print(error)
                     self.conn.rollback()
                     self.conn.close()
                     
             else:
-                if (self.IchState == 1):
+                if (self.active == 1):
                     self.ExSellPrice = self.tenkanSen[0] * self.SellBuffer ##sell buffer
                     print("re-adjusting sell price to %.9f") % (self.ExSellPrice)
-                elif (self.IchState == 0): 
-                    self.ExSellPrice = self.kijunSen[0]
-                    print("re-adjusting sell price to %.9f") % (self.ExSellPrice)
+                elif (self.active == 0): 
+                    self.ExOrder = 0
             
                 
                 
