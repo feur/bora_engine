@@ -30,12 +30,12 @@ class MyPair(object):
         self.pid = os.getpid()  ##Get process pid
         print("pid is: %d" % self.pid)
 
-        self.TimeInterval = "FIVEMIN"
+        self.TimeInterval = "HOUR"
         self.pairName = entry.pair
         self.conn = MySQLdb.connect(Fink_DB_HOST,Fink_DB_USER,Fink_DB_PW,Fink_DB_NAME) 
         self.edel = MySQLdb.connect(Edel_DB_HOST,Edel_DB_USER,Edel_DB_PW,Edel_DB_NAME) ##connect to edel DB
-        self.SellBuffer = 1.005
-        self.BuyBuffer = 0.995
+        self.SellBuffer = 1.05
+        self.BuyBuffer = 0.92
         self.tenkanSenP = 0 
         
         
@@ -120,7 +120,7 @@ class MyPair(object):
         
         while True: 
             self.account = Bittrex(self.api,self.secret, api_version=API_V2_0)
-            data = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_FIVEMIN)
+            data = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_HOUR)
         
             if (data['success'] == True and data['result']):
                 self.data = data['result']
@@ -590,7 +590,7 @@ class MyPair(object):
         
         if (self.ExOrder == 0):
             
-            if (self.Exhold == 0 and self.active == 0 and self.current['L'] < float(self.tenkanSen[0] * self.BuyBuffer)):
+            if (self.Exhold == 0 and self.active == 0 and self.current['L'] < float(self.kijunSen[0] * self.BuyBuffer)):
                 self.ExOrder = 2 ##buy
                 self.ExBuyPrice = self.tenkanSen[0] * self.BuyBuffer ##buy price
                 print("Experimental Buy order in at %.9f" % (self.ExBuyPrice))
@@ -624,10 +624,10 @@ class MyPair(object):
                     self.conn.close()
                     
             else:
-                if (self.active == 1 or self.current['L'] > float(self.tenkanSen[0] * self.BuyBuffer)):
+                if (self.active == 1 or self.current['L'] > float(self.kijunSen[0] * self.BuyBuffer)):
                     self.ExOrder = 0
                 else:
-                    self.ExBuyPrice = self.tenkanSen[0] * self.BuyBuffer ##buy price
+                    self.ExBuyPrice = self.kijunSen[0] * self.BuyBuffer ##buy price
                     print("re-adjusting buy price to %.9f") % (self.ExBuyPrice)
                 
         elif (self.ExOrder == 1): #sell order
