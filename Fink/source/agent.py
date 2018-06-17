@@ -424,7 +424,7 @@ class MyPair(object):
         
     
         ##Buy Price is at blue line
-        price = float(self.kijunSen[0] * self.BuyBuffer)
+        price = float(self.kijunSen[0] * self.BuyBuffer) ##buy price)
         self.OrderAmount = float(self.BuyLimit/ price)
         
         print("buying %s at amount %.9f for price %.9f" % (self.pairName,self.OrderAmount,price))
@@ -511,16 +511,19 @@ class MyPair(object):
         
         self.GetTrend()
         self.GetActive()
-        self.GetCandleState()
+        #self.GetCandleState()
         
-        if (self.active == 1 and self.CandleState == 1):
+        if (self.active == 0 and self.current['L'] < float(self.kijunSen[0] * self.BuyBuffer)): ##we're on the bottom of a downtrend 
             self.Buy = 1
+            
+            
+            ##log Buy signal 
             
             ts = time.time()
             timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
             cursor = self.conn.cursor()
-            query = ("INSERT INTO `SignalLog`(`Pair`, `BuyPrice`, `SellPrice`, `TimeInterval`, `Time`) VALUES ('%s',%.9f,%.9f,'%s','%s')" % 
-            (self.pairName,float(self.kijunSen[0] * self.BuyBuffer), float(self.tenkanSen[0] * self.SellBuffer),self.TimeInterval,timestamp))
+            query = ("INSERT INTO `SignalLog`(`Pair`, `BuyPrice`, `SellPrice`, `TimeInterval`, `Time`) VALUES ('%s',%.9f,%.9f,0.0,'%s')" % 
+            (self.pairName,float(self.kijunSen[0] * self.BuyBuffer),self.TimeInterval,timestamp))
 
         
             try:
@@ -540,16 +543,22 @@ class MyPair(object):
         
         
         
-        
     def UpdateOrder(self):
         
         '''
-        if order is sell: 
-            - Sell must be tenkanSen
-            - Buy must be  kijunSen
-        '''        
+        This function updates Orders if conditions do not meet, conditions are:
+        
+        Buy orders exist when we're in the buy zone (self.Buy == 0)
+        Sell orders exist when we're in the active zone (self.active == 0) and we always readjust
+        Sell orders to meet the update SellPrice (following tenkanSen * sellBuffer)
+        ''' 
+        
+        SellPrice = float(self.tenkanSen[0] * self.SellBuffer) ##make it easier        
+        SellPriceH = float(SellPrice * 1.001)
+        SellPriceL = float(SellPrice * 0.994)
+        
         if (self.Order == 2): ## buy order
-            if (self.Buy == 0):
+            if (self.Buy == 0): ##we're not in the buy zone anymore
                 print("Cancelling order, timeout")
                 data = self.account.cancel(self.OrderID) ##Cancel that Buy Price because we can't make any +%0.05 retur
             else:
@@ -557,16 +566,26 @@ class MyPair(object):
                 
         elif (self.Order == 1): ##sell order
         
-            if (self.OrderPrice < float(self.tenkanSen[0] * self.SellBuffer * 0.994) or self.OrderPrice > float(self.tenkanSen[0] * self.SellBuffer * 1.001)): ##making sure that order is in line with tenkansen 
+            if (self.active == 0): ##not in active zone
                 data = self.account.cancel(self.OrderID) ##Cancel that Sell Price
-                print("updating sell Order!")
-                self.SellPair() ##readjust
+                print("Not in active Zone, canclled sell order")
                 
-            else:
-                print("All Orders are okay!")
+            elif (self.active == 1): ##active, make sure order is within the active zone 
+                if (self.OrderPrice < SellPriceL or self.OrderPrice > SellPriceH): ##make sure its in the Sell Order zone 
+                    data = self.account.cancel(self.OrderID) ##Cancel that Sell Price
+                    print("updating sell Order!")
+                    self.SellPair() ##readjust
+                else:
+                    print("Sell Order is still okay!")
+                    
+                
+                    
                 
                 
     def Action(self):
+        
+        
+        self.CheckBuyPosition() ## check if we're in buy position or in active zone
         
         if (self.Order > 0):
             print("will check order!")
@@ -575,11 +594,12 @@ class MyPair(object):
         elif (self.Order == 0):
                 print("No orders detected")
                 
-                if (self.balanceBTC < 0.01 and self.Buy == 1): ##No balance 
+                if (self.balanceBTC < 0.01 and self.Buy == 1): ##No balance and we're in buy position
                     self.BuyPair() ##put in a buy order
-                elif (self.balanceBTC > 0.002): ##there is balance
+                elif (self.balanceBTC > 0.002 and self.active == 1): ##there is balance and we're in active zone
                     print("selling order")
                     self.SellPair() ##put in sell orders
+                    
                     
                     
     def ExAction(self):
@@ -592,12 +612,12 @@ class MyPair(object):
             
             if (self.Exhold == 0 and self.active == 0 and self.current['L'] < float(self.kijunSen[0] * self.BuyBuffer)):
                 self.ExOrder = 2 ##buy
-                self.ExBuyPrice = self.tenkanSen[0] * self.BuyBuffer ##buy price
+                self.ExBuyPrice = self.kijunSen[0] * self.BuyBuffer ##buy price
                 print("Experimental Buy order in at %.9f" % (self.ExBuyPrice))
              
             if (self.Exhold == 1 and self.active == 1):
                 self.ExOrder = 1
-                self.ExSellPrice = self.tenkanSen[0] * self.SellBuffer ##sell buffer
+                self.ExSellPrice = self.kijunSen[0] * self.SellBuffer ##sell buffer
                 print("Experimental Sell order in at %.9f" % (self.ExSellPrice))
             
         elif (self.ExOrder == 2): ## buy order
@@ -695,8 +715,6 @@ while True:  ##Forever loop
     
     
     pair.GetBalance() 
-    pair.CheckBuyPosition()
-    
     pair.GetOrder()
    # pair.Action()
     pair.ExAction()
