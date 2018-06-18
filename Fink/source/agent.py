@@ -522,8 +522,7 @@ class MyPair(object):
             ts = time.time()
             timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
             cursor = self.conn.cursor()
-            query = ("INSERT INTO `SignalLog`(`Pair`, `BuyPrice`, `SellPrice`, `TimeInterval`, `Time`) VALUES ('%s',%.9f,%.9f,0.0,'%s')" % 
-            (self.pairName,float(self.kijunSen[0] * self.BuyBuffer),self.TimeInterval,timestamp))
+            query = ("INSERT INTO `SignalLog`(`Pair`, `BuyPrice`, `TimeInterval`, `Time`) VALUES ('%s',%.9f,'%s','%s')" % (self.pairName,float(self.kijunSen[0] * self.BuyBuffer),self.TimeInterval,timestamp))
 
         
             try:
@@ -608,6 +607,8 @@ class MyPair(object):
             Experimental Stuff
         '''
         
+        self.CheckBuyPosition() ## check if we're in buy position or in active zone
+        
         if (self.ExOrder == 0):
             
             if (self.Exhold == 0 and self.active == 0 and self.current['L'] < float(self.kijunSen[0] * self.BuyBuffer)):
@@ -619,6 +620,7 @@ class MyPair(object):
                 self.ExOrder = 1
                 self.ExSellPrice = self.kijunSen[0] * self.SellBuffer ##sell buffer
                 print("Experimental Sell order in at %.9f" % (self.ExSellPrice))
+           
             
         elif (self.ExOrder == 2): ## buy order
             if (self.ExBuyPrice > self.current['L']):
