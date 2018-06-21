@@ -30,12 +30,12 @@ class MyPair(object):
         self.pid = os.getpid()  ##Get process pid
         print("pid is: %d" % self.pid)
 
-        self.TimeInterval = "HOUR"
+        self.TimeInterval = "FIVEMIN"
         self.pairName = entry.pair
         self.conn = MySQLdb.connect(Fink_DB_HOST,Fink_DB_USER,Fink_DB_PW,Fink_DB_NAME) 
         self.edel = MySQLdb.connect(Edel_DB_HOST,Edel_DB_USER,Edel_DB_PW,Edel_DB_NAME) ##connect to edel DB
-        self.SellBuffer = 1.05
-        self.BuyBuffer = 0.92
+        self.SellBuffer = 1
+        self.BuyBuffer = 1
         self.tenkanSenP = 0 
         
         
@@ -120,10 +120,11 @@ class MyPair(object):
         
         while True: 
             self.account = Bittrex(self.api,self.secret, api_version=API_V2_0)
-            data = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_HOUR)
+            data = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_FIVEMIN)
         
             if (data['success'] == True and data['result']):
                 self.data = data['result']
+                print(data)
                 self.current = self.data[-1]
                 self.prev = self.data[-2]
             
@@ -137,6 +138,7 @@ class MyPair(object):
         
         if (data['success'] == True and data['result'] != None):
             result = data['result']           
+            print(result)
             self.balance = result['Balance']
         else: 
            self.balance = 0
@@ -335,23 +337,7 @@ class MyPair(object):
             lowest *= 0
                     
        
-        period = 52
-        
-        for x in range (y/period):  
-            
-            for z in range(y - (x+1)*period, y-(period*x + 1)):
-                highest.append(high[z])
-                lowest.append(low[z])
-                
-            self.senkouB.append((max(highest) + min(lowest))/2) 
-            highest *= 0
-            lowest *= 0
-            
-            
-        period = 26
-        
-        for x in range(period-1):
-            self.senkouA.append((self.tenkanSen[x] + self.kijunSen[x])/ 2)
+       
             
             
         print("red at: %.9f" % self.tenkanSen[0])  
@@ -720,7 +706,7 @@ while True:  ##Forever loop
     pair.GetOrder()
    # pair.Action()
     pair.ExAction()
-    pair.UploadData() 
+    #pair.UploadData() 
    
     time.sleep(60) ## enoguh delay for an order to be complete
 

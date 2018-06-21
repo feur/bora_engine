@@ -21,10 +21,10 @@ class MyPair(object):
         
         self.conn = MySQLdb.connect(Fink_DB_HOST,Fink_DB_USER,Fink_DB_PW,Fink_DB_NAME) 
        
-        self.BuyLimit = 0.04
-        self.BuyBuffer = 0.92
+        self.BuyLimit = 0.012
+        self.BuyBuffer = 0.95
         self.SellBufferH = 1.1
-        self.SellBufferL = 1.05
+        self.SellBufferL = 1.03
 
              
             
@@ -368,8 +368,12 @@ class MyPair(object):
             
             if (self.balanceBTC < 0.01 and self.Buy == 1): ##low balance and we're in Buy Zone
                 self.BuyPair() 
-            elif (self.balanceBTC > 0.01):
-                self.SellPair() ##make a sell order
+            elif (self.balanceBTC > 0.01): ##only sell when tenkansen 
+                if (self.active == 1):
+                    print("in active selling zone")
+                    self.SellPair() ##make a sell order
+                else:
+                    print("Not in selling zone")
                 
         elif (self.Order == 1): ##sell order in place
             
