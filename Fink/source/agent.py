@@ -30,12 +30,14 @@ class MyPair(object):
         self.pid = os.getpid()  ##Get process pid
         print("pid is: %d" % self.pid)
 
-        self.TimeInterval = "FIVEMIN"
+        self.TimeInterval = "ONEMIN"
+        self.TimeIntervalINT = 1
+        
         self.pairName = entry.pair
         self.conn = MySQLdb.connect(Fink_DB_HOST,Fink_DB_USER,Fink_DB_PW,Fink_DB_NAME) 
         self.edel = MySQLdb.connect(Edel_DB_HOST,Edel_DB_USER,Edel_DB_PW,Edel_DB_NAME) ##connect to edel DB
-        self.SellBuffer = 1
-        self.BuyBuffer = 1
+        self.SellBuffer = 1.01
+        self.BuyBuffer = 0.985
         self.tenkanSenP = 0 
         
         
@@ -119,16 +121,62 @@ class MyPair(object):
         self.EMA = [0,0,0,0]  ##55,21,13,8
         
         while True: 
-            self.account = Bittrex(self.api,self.secret, api_version=API_V2_0)
-            data = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_FIVEMIN)
+            self.account = Bittrex("f5d8f6b8b21c44548d2799044d3105f0","b3845ea35176403bb530a31fd4481165", api_version=API_V2_0)
+            result = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_ONEMIN)
         
-            if (data['success'] == True and data['result']):
-                self.data = data['result']
-                print(data)
-                self.current = self.data[-1]
-                self.prev = self.data[-2]
+            if (result['success'] == True and result['result']):
+                self.raw = result['result']
+                self.SortData()
             
             break
+        
+        
+    def SortData(self): 
+         self.data = []
+            
+         self.data.append(self.raw[0]) ##get the first data in 
+         
+         ##this is where we check the intervals between every data and fill in the blanks
+         for i in range(1,len(self.raw)):
+             tdiff = datetime.datetime.strptime(self.raw[i]['T'],"%Y-%m-%dT%H:%M:%S") - datetime.datetime.strptime(self.raw[i-1]['T'],"%Y-%m-%dT%H:%M:%S") 
+             td_mins = int(round(tdiff.total_seconds() / 60))
+            # print(td_mins)
+                           
+             ##here we insert the missing numbers
+             if (td_mins > self.TimeIntervalINT):         
+                 interval = td_mins / self.TimeIntervalINT
+                 for x in range(1,interval):
+                     self.data.append(self.raw[i-1])  
+                     self.data[-1]['L'] = self.data[-1]['C']
+                     self.data[-1]['H'] = self.data[-1]['C']
+                     self.data[-1]['O'] = self.data[-1]['C']
+
+                 self.data.append(self.raw[i])
+             else: 
+                 
+                 self.data.append(self.raw[i])
+                 
+         ##this is where we check if the last data time is the current time if not, fill in blanks
+                 
+         
+         currentTime = datetime.datetime.now()
+         tdiff = currentTime - datetime.datetime.strptime(self.data[-1]['T'],"%Y-%m-%dT%H:%M:%S") 
+         td_mins = int(round(tdiff.total_seconds() / 60)) - 600
+         
+         if (td_mins > 0):
+             interval = td_mins / self.TimeIntervalINT
+             
+             for x in range(1,interval):
+                     self.data.append(self.data[-1])  
+                     self.data[-1]['L'] = self.data[-1]['C']
+                     self.data[-1]['H'] = self.data[-1]['C']
+                     self.data[-1]['O'] = self.data[-1]['C']
+             
+         #print(self.data)
+                 
+         
+         self.current = self.data[-1]
+         self.prev = self.data[-2]
         
      
             
@@ -248,22 +296,24 @@ class MyPair(object):
         
 
         for i in range(1,len(self.tr) - 13):
-            self.trMax.append(self.trMax[i-1] - (self.trMax[i-1]/14) + self.tr[i+13])
-            self.dmPosMax.append(self.dmPosMax[i-1] - (self.dmPosMax[i-1]/14) + self.dmPos[i+13])
-            self.dmNegMax.append(self.dmNegMax[i-1] - (self.dmNegMax[i-1]/14) + self.dmNeg[i+13])
+            self.trMax.append(float(self.trMax[i-1] - float(self.trMax[i-1]/14) + self.tr[i+13]))
+            self.dmPosMax.append(float(self.dmPosMax[i-1] - float(self.dmPosMax[i-1]/14) + self.dmPos[i+13]))
+            self.dmNegMax.append(float(self.dmNegMax[i-1] - float(self.dmNegMax[i-1]/14) + self.dmNeg[i+13]))
             
-
+            
+        
         #calculate diPos & diNeg
         for i in range(0, len(self.trMax)):
-            self.diPos.append((self.dmPosMax[i] / self.trMax[i]) * 100)
-            self.diNeg.append((self.dmNegMax[i] / self.trMax[i]) * 100)
+            if (self.trMax[i] != 0):
+                self.diPos.append(float(self.dmPosMax[i] / self.trMax[i]) * 100)
+                self.diNeg.append(float(self.dmNegMax[i] / self.trMax[i]) * 100)
             
         print("DI- is: %.9f" % self.diNeg[-1])    
         print("DI+ is: %.9f" % self.diPos[-1])        
         
         if (self.diNeg[-1] > self.diPos[-1]): ##Downtrend
             self.Direction = 0 
-        elif (self.diNeg[-1] == self.diPos[-1]): ##possible crossover
+        elif (self.diNeg[-1] == self.diPos[-1]): ##possible crossovertrMAX
             self.Direction = 0
         else:
             self.Direction = 1 ##uptrend 
@@ -604,7 +654,7 @@ class MyPair(object):
              
             if (self.Exhold == 1 and self.active == 1):
                 self.ExOrder = 1
-                self.ExSellPrice = self.kijunSen[0] * self.SellBuffer ##sell buffer
+                self.ExSellPrice = self.tenkanSen[0] * self.SellBuffer ##sell buffer
                 print("Experimental Sell order in at %.9f" % (self.ExSellPrice))
            
             

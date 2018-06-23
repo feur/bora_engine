@@ -18,7 +18,6 @@ class MyPair(object):
         print("pid is: %d" % self.pid)
 
         self.TimeInterval = "FIVEMIN"
-        self.TimeIntervalINT = 5
         
         self.conn = MySQLdb.connect(Fink_DB_HOST,Fink_DB_USER,Fink_DB_PW,Fink_DB_NAME) 
        
@@ -37,61 +36,14 @@ class MyPair(object):
         
         while True: 
             self.account = Bittrex("f5d8f6b8b21c44548d2799044d3105f0","b3845ea35176403bb530a31fd4481165", api_version=API_V2_0)
-            result = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_FIVEMIN)
+            data = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_FIVEMIN)
         
-            if (result['success'] == True and result['result']):
-                self.raw = result['result']
-                self.SortData()
+            if (data['success'] == True and data['result']):
+                self.data = data['result']
+                self.current = self.data[-1]
+                self.prev = self.data[-2]
             
             break
-        
-        
-    def SortData(self): 
-         self.data = []
-            
-         self.data.append(self.raw[0]) ##get the first data in 
-         
-         ##this is where we check the intervals between every data and fill in the blanks
-         for i in range(1,len(self.raw)):
-             tdiff = datetime.datetime.strptime(self.raw[i]['T'],"%Y-%m-%dT%H:%M:%S") - datetime.datetime.strptime(self.raw[i-1]['T'],"%Y-%m-%dT%H:%M:%S") 
-             td_mins = int(round(tdiff.total_seconds() / 60))
-            # print(td_mins)
-                           
-             ##here we insert the missing numbers
-             if (td_mins > self.TimeIntervalINT):         
-                 interval = td_mins / self.TimeIntervalINT
-                 for x in range(1,interval):
-                     self.data.append(self.raw[i-1])  
-                     self.data[-1]['L'] = self.data[-1]['C']
-                     self.data[-1]['H'] = self.data[-1]['C']
-                     self.data[-1]['O'] = self.data[-1]['C']
-
-                 self.data.append(self.raw[i])
-             else: 
-                 
-                 self.data.append(self.raw[i])
-                 
-         ##this is where we check if the last data time is the current time if not, fill in blanks
-                 
-         
-         currentTime = datetime.datetime.now()
-         tdiff = currentTime - datetime.datetime.strptime(self.data[-1]['T'],"%Y-%m-%dT%H:%M:%S") 
-         td_mins = int(round(tdiff.total_seconds() / 60)) - 600
-         
-         if (td_mins > 0):
-             interval = td_mins / self.TimeIntervalINT
-             
-             for x in range(1,interval):
-                     self.data.append(self.data[-1])  
-                     self.data[-1]['L'] = self.data[-1]['C']
-                     self.data[-1]['H'] = self.data[-1]['C']
-                     self.data[-1]['O'] = self.data[-1]['C']
-             
-         #print(self.data)
-                 
-         
-         self.current = self.data[-1]
-         self.prev = self.data[-2]
         
      
             
@@ -215,9 +167,8 @@ class MyPair(object):
 
         #calculate diPos & diNeg
         for i in range(0, len(self.trMax)):
-             if (self.trMax[i] != 0):
-                self.diPos.append(float(self.dmPosMax[i] / self.trMax[i]) * 100)
-                self.diNeg.append(float(self.dmNegMax[i] / self.trMax[i]) * 100)
+            self.diPos.append((self.dmPosMax[i] / self.trMax[i]) * 100)
+            self.diNeg.append((self.dmNegMax[i] / self.trMax[i]) * 100)
             
         print("DI- is: %.9f" % self.diNeg[-1])    
         print("DI+ is: %.9f" % self.diPos[-1])        
@@ -404,10 +355,10 @@ class MyPair(object):
         ''' 
             
         ##different sell buffers for different active zones
-        #if (self.active == 0):
-        #    self.SellPrice = float(self.tenkanSen[0] * self.SellBufferL) 
-        #else:
-        self.SellPrice = float(self.tenkanSen[0] * self.SellBufferL)
+        if (self.active == 0):
+            self.SellPrice = float(self.kijunSen[0] * self.SellBufferH) 
+        else:
+            self.SellPrice = float(self.tenkanSen[0] * self.SellBufferL)
             
         
         SellPriceH = float(self.SellPrice * 1.001)
@@ -425,17 +376,13 @@ class MyPair(object):
                     print("Not in selling zone")
                 
         elif (self.Order == 1): ##sell order in place
-        
-            if (self.active == 1):
-                if (self.OrderPrice < SellPriceL or self.OrderPrice > SellPriceH):  ##make sure its in the Sell Order zone 
-                    data = self.account.cancel(self.OrderID)                        ##Cancel that Sell Order
-                    print("updating sell Order!")
-                    self.SellPair() ##readjust
-                else:
-                    print("Sell Order is still okay!")
-            else:
+            
+            if (self.OrderPrice < SellPriceL or self.OrderPrice > SellPriceH):  ##make sure its in the Sell Order zone 
                 data = self.account.cancel(self.OrderID)                        ##Cancel that Sell Order
-                print("cancelled order, not in selling zone")
+                print("updating sell Order!")
+                self.SellPair() ##readjust
+            else:
+                print("Sell Order is still okay!")
                 
         elif (self.Order == 2): ##Buy order in place
         
@@ -515,7 +462,7 @@ while True:  ##Forever loop
         
         
         
-    #time.sleep(60) ## delay to not stuff up api calls
+    time.sleep(60) ## delay to not stuff up api calls
 
 
 
