@@ -310,7 +310,7 @@ class MyPair(object):
         #print("Momentum: %.9f" % self.momentum)
         #self.rating = self.momentum * (self.diPos[-1] - self.diNeg[-1])
         
-        print("Rating is %.9f" % self.rating)
+        #print("Rating is %.9f" % self.rating)
         
         if (self.IchState == 1 and self.Trend == 1):
             self.active = 1
@@ -349,7 +349,7 @@ cursor = CurrentPair.conn.cursor()
 print("getting pairs")
 
 try:
-    cursor.execute ("SELECT * from Pair_List")
+    cursor.execute ("SELECT * from Pairs")
     data = cursor.fetchall()
         
     for i in range(len(data)):
