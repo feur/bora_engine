@@ -35,10 +35,11 @@ class MyPair(object):
         
         self.pairName = entry.pair
         self.conn = MySQLdb.connect(Fink_DB_HOST,Fink_DB_USER,Fink_DB_PW,Fink_DB_NAME) 
-        self.edel = MySQLdb.connect(Edel_DB_HOST,Edel_DB_USER,Edel_DB_PW,Edel_DB_NAME) ##connect to edel DB
         self.SellBuffer = 1.01
+        
         self.BuyBuffer = 0.985
-        self.tenkanSenP = 0 
+        self.SellBufferH = 1.01
+        self.SellBufferL = 1.01
         
         
         ##experimental stuff
@@ -82,16 +83,16 @@ class MyPair(object):
             self.conn.close()
             
         
-    def GetWatchSignal(self):
+    def GetState(self):
         
-        cursor = self.edel.cursor()
-        query = "SELECT Watch, Currency from `Pair_List` WHERE Pair='%s' " % (self.pairName)
+        cursor = self.conn.cursor()
+        query = "SELECT Active, Currency from `Pair_List` WHERE Pair='%s' " % (self.pairName)
         
         try:
             cursor.execute(query)
             data = cursor.fetchone()
             self.currency = data[1]
-            self.watch = data[0]
+            self.State = data[0]
         
         except MySQLdb.Error as error:
             print(error)
@@ -121,7 +122,7 @@ class MyPair(object):
         self.EMA = [0,0,0,0]  ##55,21,13,8
         
         while True: 
-            self.account = Bittrex("f5d8f6b8b21c44548d2799044d3105f0","b3845ea35176403bb530a31fd4481165", api_version=API_V2_0)
+            self.account = Bittrex(self.api,self.secret, api_version=API_V2_0)
             result = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_ONEMIN)
         
             if (result['success'] == True and result['result']):
@@ -449,93 +450,42 @@ class MyPair(object):
     
     
     def BuyPair(self):   
-        
-        '''
-        When a buy signal is identified, a buy order is to be made
-        The price of which to be sold is determined by the tenkanSen line (no need to go via order book)  
-        This reduces the risk of buy at a too high price to avoid lossess when selling 
-        '''    
-        
-        print("buying pair")
-        
-    
-        ##Buy Price is at blue line
-        price = float(self.kijunSen[0] * self.BuyBuffer) ##buy price)
-        self.OrderAmount = float(self.BuyLimit/ price)
-        
-        print("buying %s at amount %.9f for price %.9f" % (self.pairName,self.OrderAmount,price))
-    
-       
-        while True: 
-            
-            data = self.account.trade_buy(self.pairName, ORDERTYPE_LIMIT,self.OrderAmount,price, TIMEINEFFECT_GOOD_TIL_CANCELLED,CONDITIONTYPE_NONE, target=0.0) ##now placing buy order
-            
-            if (data['success'] == True):
-                print("Buy Order in place")
-                ## logging action
-                ts = time.time()
-                timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
-                cursor = self.conn.cursor()
-                query = "INSERT INTO `AccountHistory`(`PID`, `Pair`, `Amount`, `Price`, `Action`, `ActionTime`) VALUES (%d,'%s',%d,%.9f,'Buy','%s')" % (self.pid,self.pairName,self.OrderAmount,price,timestamp)
 
         
-                try:
-                    cursor.execute(query)
-                    self.conn.commit()
-                    break
+        print("buying pair")      
         
-                except MySQLdb.Error as error:
-                    print(error)
-                    self.conn.rollback()
-                    self.conn.close()
-            else: 
-                break
+        ##Buy Price is at blue line
+        self.OrderAmount = float(self.BuyLimit/ self.BuyPrice)
         
-        
-                        
-                    
+        print("buying %s at amount %.9f for price %.9f" % (self.pairName,self.OrderAmount,self.BuyPrice))
+     
+        data = self.account.trade_buy(self.pairName, ORDERTYPE_LIMIT,self.OrderAmount,self.BuyPrice, TIMEINEFFECT_GOOD_TIL_CANCELLED,CONDITIONTYPE_NONE, target=0.0) ##now placing buy order
+            
+        if (data['success'] == True):
+            print("Buy Order in place")
+        else:
+            print(data)
+               
+            
+            
     def SellPair(self):   
         
-        '''
-        When a SELL signal is identified, a sell order is to be made
-        The price of which to be sold is determined by the kijunSen line (no need to go via order book)  
-        This reduces the risk of selling at a lower price then originally bought even on a downtrend 
-        '''        
+     
         ##get pair and amount to sell
         print("Creating Sell order")
         amount = float(self.balance * 0.999)
-        price = float(self.SellBuffer * self.tenkanSen[0])
-        print("selling %s of amount %.9f at %.9f" % (self.pairName, amount, price))
+        print("selling %s of amount %.9f at %.9f" % (self.pairName, amount, self.SellPrice))
         
                 
         while True: 
             
-            data = self.account.trade_sell(self.pairName, ORDERTYPE_LIMIT, amount, price, TIMEINEFFECT_GOOD_TIL_CANCELLED,CONDITIONTYPE_NONE, target=0.0) ##now placing sell order
+            data = self.account.trade_sell(self.pairName, ORDERTYPE_LIMIT, amount, self.SellPrice, TIMEINEFFECT_GOOD_TIL_CANCELLED,CONDITIONTYPE_NONE, target=0.0) ##now placing sell order
             
             if (data['success'] == True):
                 print("Sell Order in place")
-                
-                ## logging action\
-                ts = time.time()
-            	timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
-            	cursor = self.conn.cursor()
-            	query = "INSERT INTO `AccountHistory`(`PID`, `Pair`, `Amount`, `Price`, `Action`, `ActionTime`) VALUES (%d,'%s',%d,%.9f,'Sell','%s')" % (self.pid,self.pairName,amount,price,timestamp) 
-             
-                try:
-                    cursor.execute(query)
-                    self.conn.commit()
-                    break
-        
-                except MySQLdb.Error as error:
-                    print(error)
-                    self.conn.rollback()
-                    self.conn.close()
-            else:
-                print(data)
                 break
             
-        
-         
+            
     def CheckBuyPosition(self):
         
         '''
@@ -545,40 +495,18 @@ class MyPair(object):
         self.current['C'] < self.tenkanSen[0]  (if price is hovering above )
         '''
         
-        self.GetTrend()
-        self.GetActive()
-        #self.GetCandleState()
+        self.BuyPrice = float(self.kijunSen[0] * self.BuyBuffer)
         
-        if (self.active == 0 and self.current['L'] < float(self.kijunSen[0] * self.BuyBuffer)): ##we're on the bottom of a downtrend 
-            self.Buy = 1
-            
-            
-            ##log Buy signal 
-            
-            ts = time.time()
-            timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
-            cursor = self.conn.cursor()
-            query = ("INSERT INTO `SignalLog`(`Pair`, `BuyPrice`, `TimeInterval`, `Time`) VALUES ('%s',%.9f,'%s','%s')" % (self.pairName,float(self.kijunSen[0] * self.BuyBuffer),self.TimeInterval,timestamp))
-
-        
-            try:
-                cursor.execute(query)
-                self.conn.commit()
-                
-    
-            except MySQLdb.Error as error:
-                print(error)
-                self.conn.rollback()
-                self.conn.close()
-    
+        if (self.active == 0 and self.current['L'] < self.BuyPrice and self.State == 1):
+            self.Buy = 1 
+            print("We're in a position to buy")
         else:
+            print("We're not in a position to buy")
             self.Buy = 0
-              
-        print("Buy Position: %d" % (self.Buy))
         
         
-        
-    def UpdateOrder(self):
+               
+    def CheckOrder(self):
         
         '''
         This function updates Orders if conditions do not meet, conditions are:
@@ -586,54 +514,50 @@ class MyPair(object):
         Buy orders exist when we're in the buy zone (self.Buy == 0)
         Sell orders exist when we're in the active zone (self.active == 0) and we always readjust
         Sell orders to meet the update SellPrice (following tenkanSen * sellBuffer)
+        
         ''' 
+            
+        ##different sell buffers for different active zones
+        #if (self.active == 0):
+        #    self.SellPrice = float(self.tenkanSen[0] * self.SellBufferL) 
+        #else:
+        self.SellPrice = float(self.tenkanSen[0] * self.SellBufferL)
+            
         
-        SellPrice = float(self.tenkanSen[0] * self.SellBuffer) ##make it easier        
-        SellPriceH = float(SellPrice * 1.001)
-        SellPriceL = float(SellPrice * 0.994)
+        SellPriceH = float(self.SellPrice * 1.001)
+        SellPriceL = float(self.SellPrice * 0.994)       
         
-        if (self.Order == 2): ## buy order
-            if (self.Buy == 0): ##we're not in the buy zone anymore
-                print("Cancelling order, timeout")
-                data = self.account.cancel(self.OrderID) ##Cancel that Buy Price because we can't make any +%0.05 retur
-            else:
-                print("buy order is still okay!")
+        if (self.Order == 0):
+            
+            if (self.balanceBTC < 0.01 and self.Buy == 1): ##low balance and we're in Buy Zone
+                self.BuyPair() 
+            elif (self.balanceBTC > 0.01): ##only sell when tenkansen 
+                if (self.active == 1):
+                    print("in active selling zone")
+                    self.SellPair() ##make a sell order
+                else:
+                    print("Not in selling zone")
                 
-        elif (self.Order == 1): ##sell order
+        elif (self.Order == 1): ##sell order in place
         
-            if (self.active == 0): ##not in active zone
-                data = self.account.cancel(self.OrderID) ##Cancel that Sell Price
-                print("Not in active Zone, canclled sell order")
-                
-            elif (self.active == 1): ##active, make sure order is within the active zone 
-                if (self.OrderPrice < SellPriceL or self.OrderPrice > SellPriceH): ##make sure its in the Sell Order zone 
-                    data = self.account.cancel(self.OrderID) ##Cancel that Sell Price
+            if (self.active == 1):
+                if (self.OrderPrice < SellPriceL or self.OrderPrice > SellPriceH):  ##make sure its in the Sell Order zone 
+                    data = self.account.cancel(self.OrderID)                        ##Cancel that Sell Order
                     print("updating sell Order!")
                     self.SellPair() ##readjust
                 else:
                     print("Sell Order is still okay!")
-                    
+            else:
+                data = self.account.cancel(self.OrderID)                        ##Cancel that Sell Order
+                print("cancelled order, not in selling zone")
                 
-                    
-                
-                
-    def Action(self):
+        elif (self.Order == 2): ##Buy order in place
         
-        
-        self.CheckBuyPosition() ## check if we're in buy position or in active zone
-        
-        if (self.Order > 0):
-            print("will check order!")
-            self.UpdateOrder()
-            
-        elif (self.Order == 0):
-                print("No orders detected")
-                
-                if (self.balanceBTC < 0.01 and self.Buy == 1): ##No balance and we're in buy position
-                    self.BuyPair() ##put in a buy order
-                elif (self.balanceBTC > 0.002 and self.active == 1): ##there is balance and we're in active zone
-                    print("selling order")
-                    self.SellPair() ##put in sell orders
+            if (self.Buy == 0): ##we're in buy zone, check order
+                data = self.account.cancel(self.OrderID)                        ##Cancel that Buy Order
+                print("Cancelling Buy order, no longer in Buy Zone")
+            else:
+                print("Buy Order is still okay!")
                     
                     
                     
@@ -643,11 +567,10 @@ class MyPair(object):
             Experimental Stuff
         '''
         
-        self.CheckBuyPosition() ## check if we're in buy position or in active zone
         
         if (self.ExOrder == 0):
             
-            if (self.Exhold == 0 and self.active == 0 and self.current['L'] < float(self.kijunSen[0] * self.BuyBuffer)):
+            if (self.Exhold == 0 and self.Buy == 1 and self.current['L'] < float(self.kijunSen[0] * self.BuyBuffer)):
                 self.ExOrder = 2 ##buy
                 self.ExBuyPrice = self.kijunSen[0] * self.BuyBuffer ##buy price
                 print("Experimental Buy order in at %.9f" % (self.ExBuyPrice))
@@ -736,29 +659,56 @@ pair = MyPair(entry)
 
 while True:  ##Forever loop 
 
-    ##get Data
-    pair.GetWatchSignal()
 
-    ##if (pair.watch):
-    ##   print("this pair needs to be watched")
-    
+    print(" ")
+    print("Pair %s" % (pair.pairName))
+        
+    print(" ")
     pair.GetData()
-    print("current price is: %.9f" % pair.current['C'])    
-    
-    
+    pair.GetBalance() 
+        
+        
+    print("Balance: %.9f" % (pair.balance))
+    print("**************************************")
+    print(" ")
+    print("current is: %.9f" % pair.current['C'])   
+    print("Open is: %.9f" % pair.current['C']) 
+    print("Low is: %.9f" % pair.current['C']) 
+    print("High is: %.9f" % pair.current['C']) 
+    print("____________________________________")
+    print(" ")  
+        
     pair.GetActivationStatus()   
     if (pair.activation == 0):
         print("sorry your agent system is not activated, please activate it !")
         break
     
-    
-    pair.GetBalance() 
+    pair.GetTrend()              ##get EMA Trend and Direction
+    pair.GetActive()             ##get Active Zone 
+    pair.CheckBuyPosition()        ##get Buy Zone
+        
+    print("____________________________________")
+    print(" ")
+        
+    print("checking order")
     pair.GetOrder()
-   # pair.Action()
+      ##  pair.CheckOrder()
     pair.ExAction()
+    print("________________DONE!!!________________")
+           
     #pair.UploadData() 
    
-    time.sleep(60) ## enoguh delay for an order to be complete
+        
+        
+
+        
+        
+        
+        
+        
+     
+        
+    time.sleep(10) ## enoguh delay for an order to be complete
 
 
 
