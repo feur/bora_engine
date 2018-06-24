@@ -49,9 +49,10 @@ class MyPair(object):
                      
     
      
-    def GetData(self): 
+    def GetData(self,pair): 
         
         self.EMA = [0,0,0,0]  ##55,21,13,8
+        self.pairName = pair
         
         while True: 
             self.account = Bittrex(self.api,self.secret, api_version=API_V2_0)
@@ -357,7 +358,7 @@ try:
         
 except MySQLdb.Error as error:
     print(error)
-    conn.close()    
+    CurrentPair.conn.close()    
 
 
 while True:

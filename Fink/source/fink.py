@@ -86,7 +86,7 @@ class MyPair(object):
     def GetState(self):
         
         cursor = self.conn.cursor()
-        query = "SELECT Active, Currency from `Pair_List` WHERE Pair='%s' " % (self.pairName)
+        query = "SELECT Active, Currency from `Pairs` WHERE Pair='%s' " % (self.pairName)
         
         try:
             cursor.execute(query)
@@ -96,7 +96,7 @@ class MyPair(object):
         
         except MySQLdb.Error as error:
             print(error)
-            self.edel.close()
+            self.conn.close()
             
             
     def GetActivationStatus(self):
@@ -187,7 +187,7 @@ class MyPair(object):
         
         if (data['success'] == True and data['result'] != None):
             result = data['result']           
-            print(result)
+            #print(result)
             self.balance = result['Balance']
         else: 
            self.balance = 0
@@ -665,6 +665,7 @@ while True:  ##Forever loop
         
     print(" ")
     pair.GetData()
+    pair.GetState()
     pair.GetBalance() 
         
         
