@@ -42,7 +42,7 @@ def GetEntry():
                         help='Simulation on or off')
     parser.add_argument('-r', '--reset',
                         action='store',  # tell to store a value
-                        dest='reset',  # use `paor` to access value
+                        dest='r',  # use `paor` to access value
                         help='reset tables')
    
     action = parser.parse_args()
@@ -114,13 +114,13 @@ class Account(object):
             self.SellBuffer = 1.03
             print("Sell Buffer set to default 3%")
             
-        if (int(entry.ex) == 1):
+        if (entry.ex != None):
             self.ex = 1
             print("experiment mode on all agents")
         else:
             self.ex = 0
             
-        if (int(entry.r) == 1):
+        if (entry.r != None):
             print("clearing tables")
             self.Reset()
             

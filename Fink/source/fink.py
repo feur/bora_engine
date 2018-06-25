@@ -158,7 +158,7 @@ class MyPair(object):
             self.SellBuffer = 1.03
             print("Sell Buffer set to default 3%")
             
-        if (int(entry.ex) == 1):
+        if (entry.ex != None):
             self.ex = 1
             print("experiment mode on!")
         else:
@@ -665,11 +665,11 @@ class MyPair(object):
             
         print("Ichstate: %d" % (self.IchState))    
        
-    
+       
+        self.SellPrice = float(self.tenkanSen[0] * self.SellBuffer)
         if (self.IchState == 1 and self.Direction == 1 and self.EMATrend == 1):
             self.active = 1
             print ("Pair is active")
-            self.SellPrice = float(self.tenkanSen[0] * self.SellBufferL)
             ##log the signal
             ts = time.time()
             timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
