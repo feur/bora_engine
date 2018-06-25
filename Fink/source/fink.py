@@ -266,13 +266,13 @@ class MyPair(object):
         
         if (data['success'] == True and data['result'] != None):
             result = data['result']           
-            #print(result)
             self.balance = result['Balance']
         else: 
            self.balance = 0
           
         self.balanceBTC = float(self.balance * self.current['C'])
-        print("Balance is: %.9f or %.9f BTC") % (self.balance, self.balanceBTC)
+        
+       
         
           
           
