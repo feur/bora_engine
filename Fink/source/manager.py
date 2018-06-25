@@ -149,6 +149,9 @@ class Account(object):
             
             cursor.execute ("DELETE FROM `AccountBalance`")
             self.conn.commit()
+            
+            cursor.execute ("DELETE FROM `ExLog`")
+            self.conn.commit()
         
             cursor.execute ("DELETE FROM `AccountHistory`")
             self.conn.commit()
