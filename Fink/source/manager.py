@@ -92,6 +92,13 @@ class Account(object):
             self.TimeIntervalINT = 5
             print("Time interval set to default 5 minutes")
             
+        if (entry.limit != None):
+            self.BuyLimit = float(entry.limit)
+            print("Buy buffer set to : %.9f") % self.BuyLimit
+        else:
+            self.BuyLimit = 0.02
+            print("Buy Buffer set to default 0.02 BTC")
+            
         if (entry.buyBuffer != None):
             self.BuyBuffer = float(entry.buyBuffer)
             print("Buy buffer set to : %.9f") % self.BuyBuffer

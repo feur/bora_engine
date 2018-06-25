@@ -88,6 +88,13 @@ class MyPair(object):
             self.BuyBuffer = 0.95
             print("Buy Buffer set to default 5%")
             
+        if (entry.limit != None):
+            self.BuyLimit = float(entry.limit)
+            print("Buy buffer set to : %.9f") % self.BuyLimit
+        else:
+            self.BuyLimit = 0.02
+            print("Buy Buffer set to default 0.02 BTC")
+            
             
         if (entry.sellBuffer != None):
             self.SellBuffer = float(entry.sellBuffer)
