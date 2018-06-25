@@ -195,7 +195,7 @@ class Account(object):
         print("Done......!")
             
             
-    def StartAccount(self):
+    def StartAccount(self, entry):
         cursor = self.conn.cursor()
     
         try:       
@@ -206,7 +206,8 @@ class Account(object):
                 print("account tracker is still running with pid %d" % (pid[0]))
             else:
                 print("re-running account tracker ecause PID %s doesn't exist" % (pid[0]))
-                process = subprocess.call("python ~/Fink/source/account.py -k" + self.api + "-s" + self.secret +" > /dev/null 2>&1 & ",  shell=True)
+                process = subprocess.call("python ~/Fink/source/account.py -k" + entr.api + "-s" + entry.secret +" > /dev/null 2>&1 & ",  shell=True)
+                print(process)
                     
         except MySQLdb.Error as error:
             print(error)
@@ -214,7 +215,7 @@ class Account(object):
             
             
             
-    def StartAgent(self, pair):
+    def StartAgent(self, pair, entry):
     
     ##get a list of all Pairs in database and find it's pid and check it     
         cursor = self.conn.cursor()
@@ -228,7 +229,10 @@ class Account(object):
                 print("agent for %s is still running with pid %d" % (pair, data[0]))
             else:
                 print("Agent with PID: %s is not running, re-running agent for this pair %s" % (data[0],pair))
-                agent = subprocess.call("python ~/Fink/source/fink.py " + "-p " + pair + "-k " + self.api + "-s " + self.secret + "-t " + self.time + "-m " + self.BuyBuffer + "-n " + self.SellBuffer + "-ex " + self.ex + " > /dev/null 2>&1 & ",  shell=True)
+                agent = subprocess.call("python ~/Fink/source/fink.py " + "-p " + pair + "-k " + entry.api + "-s " + entry.secret + "-t "
+                + entry.time + "-m " + entry.buyBuffer + "-n " + entry.sellBuffer + "-ex " + entry.ex + "-l" + entry.limit +" > /dev/null 2>&1 & ",  shell=True)
+                
+                print(agent)
    
         except MySQLdb.Error as error:
             print(error)
@@ -270,12 +274,12 @@ while True:
      
     print(" ")
     print("Checking account tracker:")
-    PersonalAccount.StartAccount()
+    PersonalAccount.StartAccount(entry)
     print(" ")
     print("Checking all Fink agents:")
     print(" ")
     for i in range(len(ListofPairs)):
-        PersonalAccount.StartAgent(ListofPairs[i])
+        PersonalAccount.StartAgent(ListofPairs[i],entry)
     print("______________________________________________________")
     
     
