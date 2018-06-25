@@ -69,6 +69,8 @@ class Account(object):
         else:
             print("Please insert api & secret key")
             quit()
+            
+        self.time = entry.time
         
         if (int(entry.time) == 1): 
             self.TimeInterval = "ONEMIN"
@@ -94,10 +96,10 @@ class Account(object):
             
         if (entry.limit != None):
             self.BuyLimit = float(entry.limit)
-            print("Buy buffer set to : %.9f") % self.BuyLimit
+            print("Buy limit set to : %.9f") % self.BuyLimit
         else:
             self.BuyLimit = 0.02
-            print("Buy Buffer set to default 0.02 BTC")
+            print("Buy limit set to default 0.02 BTC")
             
         if (entry.buyBuffer != None):
             self.BuyBuffer = float(entry.buyBuffer)
@@ -201,7 +203,7 @@ class Account(object):
                 print("account tracker is still running with pid %d" % (pid[0]))
             else:
                 print("re-running account tracker ecause PID %s doesn't exist" % (pid[0]))
-                process = subprocess.call("python ~/Fink/source/account.py -k" + self.api + "-s" + self.key +" > /dev/null 2>&1 & ",  shell=True)
+                process = subprocess.call("python ~/Fink/source/account.py -k" + self.api + "-s" + self.secret +" > /dev/null 2>&1 & ",  shell=True)
                     
         except MySQLdb.Error as error:
             print(error)
@@ -223,7 +225,7 @@ class Account(object):
                 print("agent for %s is still running with pid %d" % (pair, data[0]))
             else:
                 print("Agent with PID: %s is not running, re-running agent for this pair %s" % (data[0],pair))
-                agent = subprocess.call("python ~/Fink/source/fink.py " + "-p " + pair + "-k " + self.api + "-s " + self.secret + "-t " + self.time + "-m " + self.buyBuffer + "-n " + self.sellBuffer + "-ex " + self.ex + " > /dev/null 2>&1 & ",  shell=True)
+                agent = subprocess.call("python ~/Fink/source/fink.py " + "-p " + pair + "-k " + self.api + "-s " + self.secret + "-t " + self.time + "-m " + self.BuyBuffer + "-n " + self.SellBuffer + "-ex " + self.ex + " > /dev/null 2>&1 & ",  shell=True)
    
         except MySQLdb.Error as error:
             print(error)
