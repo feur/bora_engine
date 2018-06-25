@@ -243,21 +243,22 @@ print("pid is: %d" % pid)
 PersonalAccount = Account()
 PersonalAccount.SetParams(entry)
 
-
-##get a list of all Pairs in database    
+cursor = PersonalAccount.conn.cursor()
+query = "SELECT * FROM Pairs"
 
 try:
-    cursor.execute ("SELECT `Pair`, `Currency` FROM `Pairs` WHERE 1")
-    data = cursor.fetchall()
-    
-    
+    cursor.execute(query)
+    data = cursor.fetchall()   
     for i in range(len(data)):
         ListofPairs.append(str(data[i][0]))
         ListofCurrencies.append(str(data[i][1]))
-          
+       
+        
 except MySQLdb.Error as error:
     print(error)
-    PersonalAccount.conn.close()
+    PersonalAccount.conn.close()    
+
+
     
 
 while True:
