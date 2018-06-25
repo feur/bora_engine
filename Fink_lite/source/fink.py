@@ -10,34 +10,116 @@ from ta import *
 
 
 
+def GetEntry():
+    parser = argparse.ArgumentParser(description='Process TA for pair')
+    parser.add_argument('-k', '--key',
+                        action='store',  # tell to store a value
+                        dest='api',  # use `paor` to access value
+                        help='Your API Key')
+    parser.add_argument('-s', '--secret',
+                        action='store',  # tell to store a value
+                        dest='secret',  # use `paor` to access value
+                        help='Your API Secret')
+    parser.add_argument('-l', '--limit',
+                        action='store',  # tell to store a value
+                        dest='limit',  # use `paor` to access value
+                        help='Your Buy Limit')
+    parser.add_argument('-m', '--buybuffer',
+                        action='store',  # tell to store a value
+                        dest='buyBuffer',  # use `paor` to access value
+                        help='your buy buffer')
+    parser.add_argument('-n', '--sellbuffer',
+                        action='store',  # tell to store a value
+                        dest='sellBuffer',  # use `paor` to access value
+                        help='your sell buffer')
+    parser.add_argument('-t', '--time',
+                        action='store',  # tell to store a value
+                        dest='time',  # use `paor` to access value
+                        help='Time Interval')
+   
+    action = parser.parse_args()
+    return action
+
 class MyPair(object):
 
     def __init__(self):
         
         self.pid = os.getpid()  ##Get process pid
         print("pid is: %d" % self.pid)
-
-        self.TimeInterval = "FIVEMIN"
-        self.TimeIntervalINT = 5
-        
         self.conn = MySQLdb.connect(Fink_DB_HOST,Fink_DB_USER,Fink_DB_PW,Fink_DB_NAME) 
-       
-        self.BuyLimit = 0.012
-        self.BuyBuffer = 0.95
-        self.SellBufferH = 1.1
-        self.SellBufferL = 1.03
-
+        
+    def SetParams(self,entry):
+        print("Applying parameters")
+        print(" " )
+        
+        if (entry.api != None and entry.secret != None):
+            self.api = entry.api
+            self.secret = entry.secret
+        else:
+            print("Please insert api & secret key")
+            quit()
+        
+        if (int(entry.time) == 1): 
+            self.TimeInterval = "ONEMIN"
+            self.TimeIntervalINT = 1
+            print("Time interval set to 1 minute")
+            print("This is not a suggested time interval for Fink Lite")
+        elif (int(entry.time)  == 5): 
+            self.TimeInterval = "FIVEMIN"
+            self.TimeIntervalINT = 5
+            print("Time interval set to 5 min")
+        elif (int(entry.time)  == 30): 
+            self.TimeInterval = "THIRTYMIN"
+            self.TimeIntervalINT = 30
+            print("Time interval set to 30 min")
+        elif (int(entry.time)  == 60): 
+            self.TimeInterval = "HOUR"
+            self.TimeIntervalINT = 60
+            print("Time interval set to 60 min")
+        else:
+            self.TimeInterval = "FIVEMIN"
+            self.TimeIntervalINT = 5
+            print("Time interval set to default 5 minutes")
+            
+        if (entry.buyBuffer != None):
+            self.BuyBuffer = float(entry.buyBuffer)
+            print("Buy buffer set to : %.9f") % self.BuyBuffer
+        else:
+            self.BuyBuffer = 0.95
+            print("Buy Buffer set to default 5%")
+            
+            
+        if (entry.sellBuffer != None):
+            self.SellBuffer = float(entry.sellBuffer)
+            print("Sell buffer set to : %.9f") % self.SellBuffer
+        else:
+            self.SellBuffer = 1.03
+            print("Sell Buffer set to default 3%")
+        print(" ")    
+        print("___Parameters Applied !_____")
+        print(" " )
+            
+     
+     
              
             
     def GetData(self,pair,currency): 
         
-        self.EMA = [0,0,0,0]  ##55,21,13,8
+        self.EMA = [0,0,0,0]  ##55,21,13,8"b3845ea35176403bb530a31fd4481165"
         self.pairName = pair
         self.currency = currency
         
         while True: 
-            self.account = Bittrex("f5d8f6b8b21c44548d2799044d3105f0","b3845ea35176403bb530a31fd4481165", api_version=API_V2_0)
-            result = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_FIVEMIN)
+            self.account = Bittrex(self.api,self.secret, api_version=API_V2_0)
+            
+            if (self.TimeIntervalINT == 1):
+                result = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_ONEMIN)
+            elif (self.TimeIntervalINT == 5):
+                result = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_FIVEMIN)
+            elif (self.TimeIntervalINT == 30):
+                result = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_THIRTYMIN)
+            elif (self.TimeIntervalINT == 60):
+                result = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_HOUR)
         
             if (result['success'] == True and result['result']):
                 self.raw = result['result']
@@ -226,8 +308,10 @@ class MyPair(object):
             self.Direction = 0 
         elif (self.diNeg[-1] == self.diPos[-1]): ##possible crossover
             self.Direction = 0
+        elif (self.diNeg[-1] < self.diPos[-1] and self.diPos[-1] > 25): ##uptrend
+            self.Direction = 1
         else:
-            self.Direction = 1 ##uptrend 
+            self.Direction = 0
                 
            
         print("Direction is: %d" % self.Direction)   
@@ -311,7 +395,7 @@ class MyPair(object):
         print("Ichstate: %d" % (self.IchState))    
        
     
-        if (self.IchState == 1 and self.Direction == 1):
+        if (self.IchState == 1 and self.Direction == 1 and self.EMATrend == 1 ):
             self.active = 1
             print ("Pair is active")
         else:
@@ -403,11 +487,8 @@ class MyPair(object):
         
         ''' 
             
-        ##different sell buffers for different active zones
-        #if (self.active == 0):
-        #    self.SellPrice = float(self.tenkanSen[0] * self.SellBufferL) 
-        #else:
-        self.SellPrice = float(self.tenkanSen[0] * self.SellBufferL)
+     
+        self.SellPrice = float(self.tenkanSen[0] * self.SellBuffer)
             
         
         SellPriceH = float(self.SellPrice * 1.001)
@@ -450,7 +531,7 @@ class MyPair(object):
         
     
 ##program start here
-
+entry = GetEntry() ##Get params
 pair = MyPair()
 ListofPairs = []     ##list of Pairs, e.g. BTC-ADA, ETH-ADA
 ListofCurrencies= [] ##list of Currencies e.g. ADA, OMG
@@ -474,7 +555,7 @@ except MySQLdb.Error as error:
     print(error)
     pair.conn.close()    
 
-
+pair.SetParams(entry)
 
 while True:  ##Forever loop 
 

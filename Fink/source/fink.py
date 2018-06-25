@@ -14,6 +14,18 @@ def GetEntry():
     parser = argparse.ArgumentParser(description='Process TA for pair')
     parser.add_argument('-p', '--pair',
                         action='store',  # tell to store a value
+                        dest='pair',  # use `pair` to access value
+                        help='The Pair to be watched')
+    parser.add_argument('-b', '--pair',
+                        action='store',  # tell to store a value
+                        dest='pair',  # use `paor` to access value
+                        help='The Pair to be watched')
+    parser.add_argument('-s', '--pair',
+                        action='store',  # tell to store a value
+                        dest='pair',  # use `paor` to access value
+                        help='The Pair to be watched')
+    parser.add_argument('-t', '--pair',
+                        action='store',  # tell to store a value
                         dest='pair',  # use `paor` to access value
                         help='The Pair to be watched')
    
@@ -30,18 +42,13 @@ class MyPair(object):
         self.pid = os.getpid()  ##Get process pid
         print("pid is: %d" % self.pid)
 
-        self.TimeInterval = "ONEMIN"
-        self.TimeIntervalINT = 1
+       
         
         self.pairName = entry.pair
         self.conn = MySQLdb.connect(Fink_DB_HOST,Fink_DB_USER,Fink_DB_PW,Fink_DB_NAME) 
-        self.SellBuffer = 1.01
-        
-        self.BuyBuffer = 0.985
-        self.SellBufferH = 1.01
-        self.SellBufferL = 1.01
-        
-        
+        self.edel = MySQLdb.connect(Edel_DB_HOST,Edel_DB_USER,Edel_DB_PW,Edel_DB_NAME) 
+       
+
         ##experimental stuff
         self.ExBuyPrice = 0
         self.Exhold = 0
@@ -49,28 +56,12 @@ class MyPair(object):
         self.ExReturn = 0
         self.ExSellPrice = 0
         
-        ##get BuyLimit, api key and secret
-        cursor = self.conn.cursor()
-        query = "SELECT * FROM `Settings` WHERE 1"
-    
-        try:
-            cursor.execute(query)
-            data = cursor.fetchone()
-            self.api = data[0]
-            self.secret = data[1]
-            self.BuyLimit = float(data[2])
-            self.uid = data[3]
-            self.IchStatePrev = 0
-            self.entry = entry
         
-        except MySQLdb.Error as error:
-            print(error)
-            self.conn.close()
         
-        ## Initialize Pair Values
+        ## Insert PID
             
         cursor = self.conn.cursor()
-        query = "UPDATE Pairs SET `IchState`= NULL, PID = %d WHERE Pair='%s'" % (self.pid,entry.pair) ##Null IchState, put in PID and entry pair
+        query = "UPDATE Pairs SET PID = %d WHERE Pair='%s'" % (self.pid,self.pairName) ##Null IchState, put in PID and entry pair
 
         try:
             cursor.execute(query)
@@ -81,6 +72,42 @@ class MyPair(object):
             print(error)
             self.conn.rollback()
             self.conn.close()
+            
+            
+    def GetParams(self):
+        ##get BuyLimit, api key and secret
+        cursor = self.conn.cursor()
+        query = "SELECT * FROM `Settings` WHERE 1"
+    
+        try:
+            cursor.execute(query)
+            data = cursor.fetchone()
+            
+            self.api = data[0]
+            self.secret = data[1]
+            self.uid = data[3]
+        
+            self.BuyLimit = float(data[2])
+            self.SellBuffer = 1.01
+            self.BuyBuffer = 0.985
+            
+             
+             self.TimeIntervalINT = 1
+            
+        except MySQLdb.Error as error:
+            print(error)
+            self.conn.close()
+            
+        if (self.TimeIntervalInt == 1):
+            self.TimeInterval = "ONEMIN"
+        elif (self.TimeIntervalInt == 30):
+            self.TimeInterval = "THIRTYMIN"
+            TICKINTERVAL_ONEMIN = 'oneMin'
+TICKINTERVAL_FIVEMIN = 'fiveMin'
+TICKINTERVAL_HOUR = 'hour'
+TICKINTERVAL_THIRTYMIN = 'thirtyMin'
+TICKINTERVAL_DAY = 'Day'
+        
             
         
     def GetState(self):

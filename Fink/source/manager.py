@@ -104,7 +104,7 @@ class Account(object):
                 print("agent for %s is still running with pid %d" % (pair, data[0]))
             else:
                 print("Agent with PID: %s is not running, re-running agent for this pair %s" % (data[0],pair))
-                agent = subprocess.call("python ~/Fink/source/agent.py " + "-p " + pair + " > /dev/null 2>&1 & ",  shell=True)
+                agent = subprocess.call("python ~/Fink/source/fink.py " + "-p " + pair + " > /dev/null 2>&1 & ",  shell=True)
    
         except MySQLdb.Error as error:
             print(error)

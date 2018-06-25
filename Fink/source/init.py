@@ -24,6 +24,18 @@ def GetEntry():
                         action='store',  # tell to store a value
                         dest='limit',  # use `paor` to access value
                         help='Your Buy Limit')
+    parser.add_argument('-m', '--pair',
+                        action='store',  # tell to store a value
+                        dest='buyBuffer',  # use `paor` to access value
+                        help='The Pair to be watched')
+    parser.add_argument('-n', '--pair',
+                        action='store',  # tell to store a value
+                        dest='sellBuffer',  # use `paor` to access value
+                        help='The Pair to be watched')
+    parser.add_argument('-t', '--pair',
+                        action='store',  # tell to store a value
+                        dest='pair',  # use `paor` to access value
+                        help='The Pair to be watched')
    
     action = parser.parse_args()
     return action
@@ -76,6 +88,9 @@ def UpdateLimit(fink, limit):
         print(error)
         fink.rollback()
         fink.close()
+        
+        
+def UpdateBuffer(fink, limit):
    
    
 def UpdateUID(fink):
