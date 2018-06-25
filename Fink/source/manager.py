@@ -202,7 +202,8 @@ class Account(object):
             cursor.execute ("SELECT PID FROM `Components` WHERE Unit='account'")
             pid = cursor.fetchone() #find PID for Unit
             print(pid[0])
-            if psutil.pid_exists(pid):
+            exist = psutil.pid_exists(pid[0])
+            if (exist == 1):
                 print("account tracker is still running with pid %d" % (pid[0]))
             else:
                 print("re-running account tracker ecause PID %d doesn't exist" % (pid[0]))
@@ -224,7 +225,8 @@ class Account(object):
             cursor.execute(query)
             data = cursor.fetchone()
             print(data[0])
-            if psutil.pid_exists(data[0]):
+            exist = psutil.pid_exists(data[0])
+            if (exist == 1):
                 print("agent for %s is still running with pid %d" % (pair, data[0]))
             else:
                 print("Agent with PID: %d is not running, re-running agent for this pair %s" % (data[0],pair))
