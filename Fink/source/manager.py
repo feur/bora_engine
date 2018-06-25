@@ -10,84 +10,196 @@ import psutil
 from settings import *
 
 
+def GetEntry():
+    parser = argparse.ArgumentParser(description='Process TA for pair')
+    parser.add_argument('-k', '--key',
+                        action='store',  # tell to store a value
+                        dest='api',  # use `paor` to access value
+                        help='Your API Key')
+    parser.add_argument('-s', '--secret',
+                        action='store',  # tell to store a value
+                        dest='secret',  # use `paor` to access value
+                        help='Your API Secret')
+    parser.add_argument('-l', '--limit',
+                        action='store',  # tell to store a value
+                        dest='limit',  # use `paor` to access value
+                        help='Your Buy Limit')
+    parser.add_argument('-m', '--buybuffer',
+                        action='store',  # tell to store a value
+                        dest='buyBuffer',  # use `paor` to access value
+                        help='your buy buffer')
+    parser.add_argument('-n', '--sellbuffer',
+                        action='store',  # tell to store a value
+                        dest='sellBuffer',  # use `paor` to access value
+                        help='your sell buffer')
+    parser.add_argument('-t', '--time',
+                        action='store',  # tell to store a value
+                        dest='time',  # use `paor` to access value
+                        help='Time Interval')
+    parser.add_argument('-ex', '--simulate',
+                        action='store',  # tell to store a value
+                        dest='ex',  # use `paor` to access value
+                        help='Simulation on or off')
+    parser.add_argument('-r', '--reset',
+                        action='store',  # tell to store a value
+                        dest='reset',  # use `paor` to access value
+                        help='reset tables')
+   
+    action = parser.parse_args()
+    return action
+
+
 
 class Account(object): 
     
     def __init__(self):
-    ###Get API and secret first 
+        
         self.conn = MySQLdb.connect(Fink_DB_HOST,Fink_DB_USER,Fink_DB_PW,Fink_DB_NAME)
-        cursor = self.conn.cursor() 
-        
-        try:
-            cursor.execute ("SELECT `API_Key`,`API_Secret` FROM `Settings` WHERE 1 ")
-            data = cursor.fetchone()
-            self.api = data[0]
-            self.secret = data[1]
-            
-        except MySQLdb.Error as error:
-           print(error)
-           self.conn.close()
+        self.edel = MySQLdb.connect(Edel_DB_HOST,Edel_DB_USER,Edel_DB_PW,Edel_DB_NAME) ##connect to DB
         
         
-        self.account = Bittrex(self.api, self.secret, api_version=API_V2_0) ##now connect to bittrex with api and key
-            
-            
-    def GetTotalBalance(self):
+    def SetParams(self,entry):
+        print("Applying parameters")
+        print(" " )
         
-        #First get BTC holdings
-        while True:
-            data = self.account.get_balance('BTC')
-            
-            if (data['success'] == True and data['result'] != None):
-                result = data['result']
-                self.RemainingBTC = result['Balance']
-                break
-            
-        #Get sum of BTCHolding column
-            
-        cursor = self.conn.cursor() 
+        if (entry.api != None and entry.secret != None):
+            self.api = entry.api
+            self.secret = entry.secret
+            self.account = Bittrex(self.api, self.secret, api_version=API_V2_0) ##now connect to bittrex with api and key
+        else:
+            print("Please insert api & secret key")
+            quit()
         
-        try:
-            cursor.execute ("SELECT SUM(HoldBTC) from Pairs")
-            Sum = cursor.fetchone()
+        if (int(entry.time) == 1): 
+            self.TimeInterval = "ONEMIN"
+            self.TimeIntervalINT = 1
+            print("Time interval set to 1 minute")
+            print("This is not a suggested time interval for Fink Lite")
+        elif (int(entry.time)  == 5): 
+            self.TimeInterval = "FIVEMIN"
+            self.TimeIntervalINT = 5
+            print("Time interval set to 5 min")
+        elif (int(entry.time)  == 30): 
+            self.TimeInterval = "THIRTYMIN"
+            self.TimeIntervalINT = 30
+            print("Time interval set to 30 min")
+        elif (int(entry.time)  == 60): 
+            self.TimeInterval = "HOUR"
+            self.TimeIntervalINT = 60
+            print("Time interval set to 60 min")
+        else:
+            self.TimeInterval = "FIVEMIN"
+            self.TimeIntervalINT = 5
+            print("Time interval set to default 5 minutes")
             
-        
-        except MySQLdb.Error as error:
-            print(error)
-            self.conn.close()
+        if (entry.buyBuffer != None):
+            self.BuyBuffer = float(entry.buyBuffer)
+            print("Buy buffer set to : %.9f") % self.BuyBuffer
+        else:
+            self.BuyBuffer = 0.95
+            print("Buy Buffer set to default 5%")
+            
+            
+        if (entry.sellBuffer != None):
+            self.SellBuffer = float(entry.sellBuffer)
+            print("Sell buffer set to : %.9f") % self.SellBuffer
+        else:
+            self.SellBuffer = 1.03
+            print("Sell Buffer set to default 3%")
+            
+        if (int(entry.ex) == 1):
+            self.ex = 1
+            print("experiment mode on all agents")
+        else:
+            self.ex = 0
+            
+        if (int(entry.r) == 1):
+            print("clearing tables")
+            self.Reset()
+            
+        print(" ")    
+        print("___Parameters Applied !_____")
+        print(" " )
+            
+            
+            
+            
+    def Reset(self):    
+   
+        '''
+        Will get all the Pairs that are currently registerd by Edel and populate 
+        Fink DB
+        '''
     
-        self.TotalBTCBalance = float(Sum[0]) + self.RemainingBTC
-        print("Total BTC is: %.9f" % self.TotalBTCBalance)
-        
+        ###First make sure all Tables are clear
+        cursor = self.conn.cursor()    
             
-    def LogAccountBalance(self,pid):
-        
-        print("logging account now..")
-        
-        ##get Balance in USD
-        while True:
-            data = self.account.get_latest_candle("USDT-BTC", tick_interval=TICKINTERVAL_ONEMIN)
+        try:       
+            cursor.execute ("DELETE FROM `Pairs`")
+            self.conn.commit()
             
-            if (data['success'] == True and data['result'] != None):
-                result = data['result']
-                self.TotalUSDBalance = self.TotalBTCBalance * result[0]['C']
-            break
+            cursor.execute ("DELETE FROM `AccountBalance`")
+            self.conn.commit()
         
+            cursor.execute ("DELETE FROM `AccountHistory`")
+            self.conn.commit()
         
-        ts = time.time()
-        timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
-        
-        cursor = self.conn.cursor()
-        query = "INSERT INTO `AccountBalance`(`PID`, `BTC`, `USD`, `DateTime`) VALUES (%d,%.9f,%.9f,'%s')" % (pid,self.TotalBTCBalance,self.TotalUSDBalance,timestamp)
-
-        try:
-            cursor.execute(query)
+            cursor.execute ("DELETE FROM `SignalLog`")
             self.conn.commit()
             
         except MySQLdb.Error as error:
             print(error)
             self.conn.rollback()
             self.conn.close()
+        
+        
+        ###Get a list of all Pairs and Currency
+        cursor = self.edel.cursor() 
+        print("inserting pairs")
+        try:
+            cursor.execute ("SELECT `Pair`, `Currency` FROM `Pair_List` WHERE 1 ")
+            data = cursor.fetchall()
+        
+            cursor = self.conn.cursor()
+            
+            for i in range(len(data)):
+                
+                ##now insert the list into the local database 
+            
+                query = "INSERT INTO `Pairs`(`Pair`, `Currency`) VALUES ('%s','%s')" % (str(data[i][0]),str(data[i][1]))
+    
+                try: 
+                    cursor.execute(query)
+                    self.conn.commit()
+    
+                except MySQLdb.Error as error:
+                    print(error)
+                    self.conn.close()
+                    
+        except MySQLdb.Error as error:
+            print(error)
+            self.edel.close()
+            
+        print("Done......!")
+            
+            
+    def StartAccount(self):
+        cursor = self.conn.cursor()
+    
+        try:       
+            cursor.execute ("SELECT PID FROM `Components` WHERE Unit='account'")
+            pid = cursor.fetchone() #find PID for Unit
+        
+            if psutil.pid_exists(pid[0]):
+                print("account tracker is still running with pid %d" % (pid[0]))
+            else:
+                print("re-running account tracker ecause PID %s doesn't exist" % (pid[0]))
+                process = subprocess.call("python ~/Fink/source/account.py -k" + self.api + "-s" + self.key +" > /dev/null 2>&1 & ",  shell=True)
+                    
+        except MySQLdb.Error as error:
+            print(error)
+            self.conn.close()  
+            
             
             
     def StartAgent(self, pair):
@@ -104,17 +216,17 @@ class Account(object):
                 print("agent for %s is still running with pid %d" % (pair, data[0]))
             else:
                 print("Agent with PID: %s is not running, re-running agent for this pair %s" % (data[0],pair))
-                agent = subprocess.call("python ~/Fink/source/fink.py " + "-p " + pair + " > /dev/null 2>&1 & ",  shell=True)
+                agent = subprocess.call("python ~/Fink/source/fink.py " + "-p " + pair + "-k " + self.api + "-s " + self.secret + "-t " + self.time + "-m " + self.buyBuffer + "-n " + self.sellBuffer + "-ex " + self.ex + " > /dev/null 2>&1 & ",  shell=True)
    
         except MySQLdb.Error as error:
             print(error)
             self.conn.close()
               
-
                 
 ##program start here
                 
 pid = os.getpid()  ##Get process pid
+entry = GetEntry() ##Get params
 ListofPairs = []   ##list of Pairs, e.g. BTC-ADA, ETH-ADA
 ListofCurrencies= [] ##list of Currencies e.g. ADA, OMG
 
@@ -122,21 +234,8 @@ print("pid is: %d" % pid)
 
 
 PersonalAccount = Account()
+PersonalAccount.SetParams(entry)
 
-
-##insert PID into Database
-cursor = PersonalAccount.conn.cursor()
-query = "UPDATE `Components` SET `PID`=%d WHERE Unit='manager'" % (pid)
-
-try:
-    cursor.execute (query)
-    PersonalAccount.conn.commit()
-    
-except MySQLdb.Error as error:
-    print(error)
-    PersonalAccount.conn.rollback()
-    PersonalAccount.conn.close()
-     
 
 ##get a list of all Pairs in database    
 
@@ -154,17 +253,17 @@ except MySQLdb.Error as error:
     PersonalAccount.conn.close()
     
 
-#while True: 
-    #print("balance is: ")
-
 while True:
      
-    print("getting balances")
-
+    print(" ")
+    print("Checking account tracker:")
+    PersonalAccount.StartAccount()
+    print(" ")
+    print("Checking all Fink agents:")
+    print(" ")
     for i in range(len(ListofPairs)):
         PersonalAccount.StartAgent(ListofPairs[i])
+    print("______________________________________________________")
     
-    PersonalAccount.GetTotalBalance()
-    PersonalAccount.LogAccountBalance(pid)
     
     time.sleep(60)

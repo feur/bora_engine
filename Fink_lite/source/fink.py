@@ -93,8 +93,8 @@ class MyPair(object):
             self.SellBuffer = float(entry.sellBuffer)
             print("Sell buffer set to : %.9f") % self.SellBuffer
         else:
-            self.SellBuffer = 1.03
-            print("Sell Buffer set to default 3%")
+            self.SellBuffer = 1.05
+            print("Sell Buffer set to default 5%")
         print(" ")    
         print("___Parameters Applied !_____")
         print(" " )

@@ -16,37 +16,21 @@ def GetEntry():
                         action='store',  # tell to store a value
                         dest='pair',  # use `pair` to access value
                         help='The Pair to be watched')
-    parser.add_argument('-k', '--key',
+    parser.add_argument('-b', '--pair',
                         action='store',  # tell to store a value
-                        dest='api',  # use `paor` to access value
-                        help='Your API Key')
-    parser.add_argument('-s', '--secret',
+                        dest='pair',  # use `paor` to access value
+                        help='The Pair to be watched')
+    parser.add_argument('-s', '--pair',
                         action='store',  # tell to store a value
-                        dest='secret',  # use `paor` to access value
-                        help='Your API Secret')
-    parser.add_argument('-l', '--limit',
+                        dest='pair',  # use `paor` to access value
+                        help='The Pair to be watched')
+    parser.add_argument('-t', '--pair',
                         action='store',  # tell to store a value
-                        dest='limit',  # use `paor` to access value
-                        help='Your Buy Limit')
-    parser.add_argument('-m', '--buybuffer',
-                        action='store',  # tell to store a value
-                        dest='buyBuffer',  # use `paor` to access value
-                        help='your buy buffer')
-    parser.add_argument('-n', '--sellbuffer',
-                        action='store',  # tell to store a value
-                        dest='sellBuffer',  # use `paor` to access value
-                        help='your sell buffer')
-    parser.add_argument('-ex', '--simulate',
-                        action='store',  # tell to store a value
-                        dest='ex',  # use `paor` to access value
-                        help='Simulation on or off')
-    parser.add_argument('-t', '--time',
-                        action='store',  # tell to store a value
-                        dest='time',  # use `paor` to access value
-                        help='Time Interval')
+                        dest='pair',  # use `paor` to access value
+                        help='The Pair to be watched')
    
-    action = parser.parse_args()
-    return action
+    pair = parser.parse_args()
+    return pair
     
     
     
@@ -55,16 +39,16 @@ class MyPair(object):
 
     def __init__(self,entry):
         
-        ##Get process pid
-        self.pid = os.getpid()  
+        self.pid = os.getpid()  ##Get process pid
         print("pid is: %d" % self.pid)
 
+       
+        
         self.pairName = entry.pair
         self.conn = MySQLdb.connect(Fink_DB_HOST,Fink_DB_USER,Fink_DB_PW,Fink_DB_NAME) 
-        self.edel = MySQLdb.connect(Edel_DB_HOST,Edel_DB_USER,Edel_DB_PW,Edel_DB_NAME) ##connect to DB
-        
-        self.UID = "admin"
+        self.edel = MySQLdb.connect(Edel_DB_HOST,Edel_DB_USER,Edel_DB_PW,Edel_DB_NAME) 
        
+
         ##experimental stuff
         self.ExBuyPrice = 0
         self.Exhold = 0
@@ -72,7 +56,10 @@ class MyPair(object):
         self.ExReturn = 0
         self.ExSellPrice = 0
         
+        
+        
         ## Insert PID
+            
         cursor = self.conn.cursor()
         query = "UPDATE Pairs SET PID = %d WHERE Pair='%s'" % (self.pid,self.pairName) ##Null IchState, put in PID and entry pair
 
@@ -85,82 +72,58 @@ class MyPair(object):
             print(error)
             self.conn.rollback()
             self.conn.close()
-          
-        ## get currency
+            
+            
+    def GetParams(self):
+        ##get BuyLimit, api key and secret
         cursor = self.conn.cursor()
-        query = "SELECT Currency from `Pairs` WHERE Pair='%s' " % (self.pairName)
-        
+        query = "SELECT * FROM `Settings` WHERE 1"
+    
         try:
             cursor.execute(query)
             data = cursor.fetchone()
-            self.currency = data[0]
+            
+            self.api = data[0]
+            self.secret = data[1]
+            self.uid = data[3]
         
+            self.BuyLimit = float(data[2])
+            self.SellBuffer = 1.01
+            self.BuyBuffer = 0.985
+            
+             
+             self.TimeIntervalINT = 1
+            
         except MySQLdb.Error as error:
             print(error)
             self.conn.close()
             
-            
-            
-    def SetParams(self,entry):
-        
-        print("Applying parameters")
-        print(" " )
-        
-        if (entry.api != None and entry.secret != None):
-            self.api = entry.api
-            self.secret = entry.secret
-            self.account = Bittrex(self.api, self.secret, api_version=API_V2_0) ##now connect to bittrex with api and key
-        else:
-            print("Please insert api & secret key")
-            quit()
-        
-        if (int(entry.time) == 1): 
+        if (self.TimeIntervalInt == 1):
             self.TimeInterval = "ONEMIN"
-            self.TimeIntervalINT = 1
-            print("Time interval set to 1 minute")
-            print("This is not a suggested time interval for Fink Lite")
-        elif (int(entry.time)  == 5): 
-            self.TimeInterval = "FIVEMIN"
-            self.TimeIntervalINT = 5
-            print("Time interval set to 5 min")
-        elif (int(entry.time)  == 30): 
+        elif (self.TimeIntervalInt == 30):
             self.TimeInterval = "THIRTYMIN"
-            self.TimeIntervalINT = 30
-            print("Time interval set to 30 min")
-        elif (int(entry.time)  == 60): 
-            self.TimeInterval = "HOUR"
-            self.TimeIntervalINT = 60
-            print("Time interval set to 60 min")
-        else:
-            self.TimeInterval = "FIVEMIN"
-            self.TimeIntervalINT = 5
-            print("Time interval set to default 5 minutes")
+            TICKINTERVAL_ONEMIN = 'oneMin'
+TICKINTERVAL_FIVEMIN = 'fiveMin'
+TICKINTERVAL_HOUR = 'hour'
+TICKINTERVAL_THIRTYMIN = 'thirtyMin'
+TICKINTERVAL_DAY = 'Day'
+        
             
-        if (entry.buyBuffer != None):
-            self.BuyBuffer = float(entry.buyBuffer)
-            print("Buy buffer set to : %.9f") % self.BuyBuffer
-        else:
-            self.BuyBuffer = 0.95
-            print("Buy Buffer set to default 5%")
-            
-            
-        if (entry.sellBuffer != None):
-            self.SellBuffer = float(entry.sellBuffer)
-            print("Sell buffer set to : %.9f") % self.SellBuffer
-        else:
-            self.SellBuffer = 1.03
-            print("Sell Buffer set to default 3%")
-            
-        if (int(entry.ex) == 1):
-            self.ex = 1
-            print("experiment mode on!")
-        else:
-            self.ex = 0
-            
-        print(" ")    
-        print("___Parameters Applied !_____")
-        print(" " )
-            
+        
+    def GetState(self):
+        
+        cursor = self.conn.cursor()
+        query = "SELECT Active, Currency from `Pairs` WHERE Pair='%s' " % (self.pairName)
+        
+        try:
+            cursor.execute(query)
+            data = cursor.fetchone()
+            self.currency = data[1]
+            self.State = data[0]
+        
+        except MySQLdb.Error as error:
+            print(error)
+            self.conn.close()
             
             
     def GetActivationStatus(self):
@@ -168,7 +131,7 @@ class MyPair(object):
         ##Check that Activated = 1 on that UID
         
         cursor = self.edel.cursor()
-        query = "SELECT Active from `User_List` WHERE UID='%s' " % (self.UID)
+        query = "SELECT Active from `User_List` WHERE UID='%s' " % (self.uid)
         
         try:
             cursor.execute(query)
@@ -187,15 +150,7 @@ class MyPair(object):
         
         while True: 
             self.account = Bittrex(self.api,self.secret, api_version=API_V2_0)
-            
-            if (self.TimeIntervalINT == 1):
-                result = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_ONEMIN)
-            elif (self.TimeIntervalINT == 5):
-                result = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_FIVEMIN)
-            elif (self.TimeIntervalINT == 30):
-                result = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_THIRTYMIN)
-            elif (self.TimeIntervalINT == 60):
-                result = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_HOUR)
+            result = self.account.get_candles(self.pairName, tick_interval=TICKINTERVAL_ONEMIN)
         
             if (result['success'] == True and result['result']):
                 self.raw = result['result']
@@ -296,193 +251,7 @@ class MyPair(object):
     def GetTrend(self):
         
         
-        ###Get EMA Trend fidef GetTrend(self):
-        
-        
         ###Get EMA Trend first
-        
-        self.EMA[0] = GetEMA(self.data, 55, self.EMA[0])  ##Get EMA55
-        self.EMA[1] = GetEMA(self.data, 21, self.EMA[1])  ##Get EMA21
-        self.EMA[2] = GetEMA(self.data, 13, self.EMA[2]) ##Get EMA13
-        self.EMA[3] = GetEMA(self.data, 8, self.EMA[3]) ##Get EMA8
-        
-        print("EMA55 is (%.9f) EMA21 is (%.9f) EMA13 is (%.9f) EMA8 (%.9f)" % (self.EMA[0], self.EMA[1], self.EMA[2], self.EMA[3]))        
-        
-        if (self.EMA[0] == max(self.EMA)):  ##work out if EMA55 is on top 
-            self.EMATrend = 0
-        else:
-            self.EMATrend = 1 
-            
-        print("EMA Trend is: %d" % self.EMATrend)
-        
-        ###Get di+ & di- Trend
-        
-        self.diPos=[]
-        self.diNeg=[]
-        self.tr=[]
-        self.trMax=[]
-        self.dmPos=[]
-        self.dmNeg=[]
-        self.dmPosMax=[]
-        self.dmNegMax=[]
-     
-        
-        #calculate TR, dmPos, dmNeg
-        tr=[]
-        dmPos=[]
-        dmNeg=[]
-        
-        for i in range(1,len(self.data)):
-            itemP = self.data[i-1]
-            itemN = self.data[i]
-           
-            maximum = max(itemN['H'] - itemN['L'], abs(itemN['H'] - itemP['C']), abs(itemN['L'] - itemP['C']))
-            tr.append(maximum)
-            
-            if (itemN['H'] - itemP['H']) > (itemP['L'] - itemN['L']):
-                dmPos.append(max((itemN['H'] - itemP['H']), 0))
-            else:               
-                dmPos.append(0)
-                
-            if (itemP['L'] - itemN['L']) > (itemN['H'] - itemP['H']):
-                 dmNeg.append(max((itemP['L'] - itemN['L']), 0))               
-            else:
-                  dmNeg.append(0)
-               
-     
-        self.tr = tr
-        self.dmPos = dmPos
-        self.dmNeg = dmNeg
-    
-        #calculate trMax,dmPosMax,dmNegMax
-        
-        SumTrMax = 0
-        SumdmPosMax = 0
-        SumdmNegMax = 0
-        
-        
-        for i in range(13):
-             SumTrMax += self.tr[i]
-             SumdmPosMax += self.dmPos[i]
-             SumdmNegMax += self.dmNeg[i]
-             
-        self.trMax.append(SumTrMax)
-        self.dmPosMax.append(SumdmPosMax)
-        self.dmNegMax.append(SumdmNegMax) 
-        
-
-        for i in range(1,len(self.tr) - 13):
-            self.trMax.append(self.trMax[i-1] - (self.trMax[i-1]/14) + self.tr[i+13])
-            self.dmPosMax.append(self.dmPosMax[i-1] - (self.dmPosMax[i-1]/14) + self.dmPos[i+13])
-            self.dmNegMax.append(self.dmNegMax[i-1] - (self.dmNegMax[i-1]/14) + self.dmNeg[i+13])
-            
-
-        #calculate diPos & diNeg
-        for i in range(0, len(self.trMax)):
-             if (self.trMax[i] != 0):
-                self.diPos.append(float(self.dmPosMax[i] / self.trMax[i]) * 100)
-                self.diNeg.append(float(self.dmNegMax[i] / self.trMax[i]) * 100)
-            
-        print("DI- is: %.9f" % self.diNeg[-1])    
-        print("DI+ is: %.9f" % self.diPos[-1])        
-        
-        if (self.diNeg[-1] > self.diPos[-1]): ##Downtrend
-            self.Direction = 0 
-        elif (self.diNeg[-1] == self.diPos[-1]): ##possible crossover
-            self.Direction = 0
-        elif (self.diNeg[-1] < self.diPos[-1] and self.diPos[-1] > 25): ##uptrend
-            self.Direction = 1
-        else:
-            self.Direction = 0
-                
-           
-        print("Direction is: %d" % self.Direction)   
-      
-        
-
-        
-      
-
-    def GetActive(self):
-        
-        '''
-        Get Ichimoku elements:
-        - Tenkansen
-        - Kijusen
-        - Cloud 
-        - Lagging
-        
-        A signal is when there is a Ichimoku Crossover  
-        The type of signal (buy or sell) is determined by:
-        - The order of the Tenkansen or Kijusen 
-        - The order of the EMAs (55 dominant or not)
-        
-        When a signal is detected and defined, a buy or sell order is actioned
-
-        '''
-        
-        high=[]
-        low=[]
-        highest=[]
-        lowest=[]
-        
-        self.tenkanSen = []
-        self.kijunSen = []
-        self.senkouB = []
-        self.senkouA = []
-        
-        for item in self.data:
-            high.append(item['H'])
-            low.append(item['L'])
-            
-     
-        y = len(self.data)
-        
-        period = 8
-        
-        for x in range (y/period):  
-            
-            for z in range(y - (x+1)*period, y-(period*x + 1)):
-                highest.append(high[z])
-                lowest.append(low[z])
-                
-            self.tenkanSen.append((max(highest) + min(lowest))/2) 
-            highest *= 0
-            lowest *= 0
-                    
-         
-        period = 32
-        
-        for x in range (y/period):  
-            
-            for z in range(y - (x+1)*period, y-(period*x + 1)):
-                highest.append(high[z])
-                lowest.append(low[z])
-                
-            self.kijunSen.append((max(highest) + min(lowest))/2) 
-            highest *= 0
-            lowest *= 0
-                    
-     
-
-        print("red at: %.9f" % self.tenkanSen[0])  
-        print("blue at: %.9f" % self.kijunSen[0])  
-            
-        #find state of Tenkansen & Kijunsen as IchState
-        if (self.tenkanSen[0] > self.kijunSen[0]): ##red on top of blue
-            self.IchState = 1
-        else:
-            self.IchState = 0
-            
-        print("Ichstate: %d" % (self.IchState))    
-       
-    
-        if (self.IchState == 1 and self.Direction == 1 and self.EMATrend == 1 ):
-            self.active = 1
-            print ("Pair is active")
-        else:
-            print ("Pair is not active")
-            self.active = 0
         
         self.EMA[0] = GetEMA(self.data, 55, self.EMA[0])  ##Get EMA55
         self.EMA[1] = GetEMA(self.data, 21, self.EMA[1])  ##Get EMA21
@@ -646,7 +415,9 @@ class MyPair(object):
             lowest *= 0
                     
        
- 
+       
+            
+            
         print("red at: %.9f" % self.tenkanSen[0])  
         print("blue at: %.9f" % self.kijunSen[0])  
             
@@ -656,7 +427,7 @@ class MyPair(object):
         else:
             self.IchState = 0
             
-        print("Ichstate: %d" % (self.IchState))    
+        print("Ichstate: %d, previous: %d" % (self.IchState, self.IchStatePrev))    
        
     
         if (self.IchState == 1 and self.Direction == 1):
@@ -666,6 +437,7 @@ class MyPair(object):
             print ("Pair is not active")
             self.active = 0
             
+        self.IchStatePrev = self.IchState ##store ichstate to previous
         
     
     def GetCandleState(self):
@@ -690,7 +462,7 @@ class MyPair(object):
     def UploadData(self):
 
         cursor = self.conn.cursor()
-        query = "UPDATE Pairs SET TradeSignal = %d, HoldBTC=%.9f, PID = %d WHERE Pair = '%s'" % (self.Buy,self.balanceBTC, self.pid,self.pairName)
+        query = "UPDATE Pairs SET TradeSignal = %d, HoldBTC=%.9f, PID = %d WHERE Pair = '%s'" % (self.active,self.balanceBTC, self.pid,self.pairName)
 
         try:
             cursor.execute(query)
@@ -910,7 +682,6 @@ class MyPair(object):
 
 entry = GetEntry() ##Get arguments to define Pair and Fib levels
 pair = MyPair(entry)
-pair.SetParams(entry)
 
 
 while True:  ##Forever loop 
@@ -921,6 +692,7 @@ while True:  ##Forever loop
         
     print(" ")
     pair.GetData()
+    pair.GetState()
     pair.GetBalance() 
         
         
@@ -937,7 +709,7 @@ while True:  ##Forever loop
     pair.GetActivationStatus()   
     if (pair.activation == 0):
         print("sorry your agent system is not activated, please activate it !")
-        quit()
+        break
     
     pair.GetTrend()              ##get EMA Trend and Direction
     pair.GetActive()             ##get Active Zone 
@@ -948,16 +720,23 @@ while True:  ##Forever loop
         
     print("checking order")
     pair.GetOrder()
-    if (pair.ex == 0):    
-        pair.CheckOrder()
-    else:
-        pair.ExAction()
+      ##  pair.CheckOrder()
+    pair.ExAction()
     print("________________DONE!!!________________")
            
-    pair.UploadData() 
+    #pair.UploadData() 
    
-   
-    time.sleep(3) ## enoguh delay for an order to be complete
+        
+        
+
+        
+        
+        
+        
+        
+     
+        
+    time.sleep(10) ## enoguh delay for an order to be complete
 
 
 
