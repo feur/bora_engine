@@ -666,9 +666,25 @@ class MyPair(object):
         print("Ichstate: %d" % (self.IchState))    
        
     
-        if (self.IchState == 1 and self.Direction == 1):
+        if (self.IchState == 1 and self.Direction == 1 and self.EMATrend == 1):
             self.active = 1
             print ("Pair is active")
+            self.SellPrice = float(self.tenkanSen[0] * self.SellBufferL)
+            ##log the signal
+            ts = time.time()
+            timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+            cursor = self.conn.cursor()
+            query = "INSERT INTO `SignalLog`(`Pair`, `BuyPrice`, `SellPrice`, `TimeInterval`, `Time`) VALUES ('%s',0.0,%.9f,'%s','%s')" % (self.pairName,self.SellPrice,self.TimeInterval,timestamp)
+ 
+            try:
+                cursor.execute(query)
+                self.conn.commit()
+                
+            except MySQLdb.Error as error:
+                print(error)
+                self.conn.rollback()
+                self.conn.close()            
+            
         else:
             print ("Pair is not active")
             self.active = 0
@@ -759,13 +775,31 @@ class MyPair(object):
         
         self.BuyPrice = float(self.kijunSen[0] * self.BuyBuffer)
         
-        if (self.active == 0 and self.current['L'] < self.BuyPrice and self.State == 1):
+        if (self.active == 0 and self.current['L'] < self.BuyPrice):
             self.Buy = 1 
             print("We're in a position to buy")
+            
+            
+            ##log the signal
+            ts = time.time()
+            timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+            cursor = self.conn.cursor()
+            query = "INSERT INTO `SignalLog`(`Pair`, `BuyPrice`, `SellPrice`, `TimeInterval`, `Time`) VALUES ('%s',%.9f,0.0,'%s','%s')" % (self.pairName,self.BuyPrice,self.TimeInterval,timestamp)
+ 
+            try:
+                cursor.execute(query)
+                self.conn.commit()
+                
+            except MySQLdb.Error as error:
+                print(error)
+                self.conn.rollback()
+                self.conn.close()            
+            
         else:
             print("We're not in a position to buy")
             self.Buy = 0
-        
+            
+            
         
                
     def CheckOrder(self):
@@ -783,7 +817,7 @@ class MyPair(object):
         #if (self.active == 0):
         #    self.SellPrice = float(self.tenkanSen[0] * self.SellBufferL) 
         #else:
-        self.SellPrice = float(self.tenkanSen[0] * self.SellBufferL)
+       
             
         
         SellPriceH = float(self.SellPrice * 1.001)

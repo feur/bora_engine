@@ -44,6 +44,20 @@ class Account(object):
         self.BTC = 0
         self.BTCPrice = 0
         self.TotalUSD = 0
+        
+           ## Insert PID
+        cursor = self.conn.cursor()
+        query = "UPDATE Components SET PID = %d WHERE Unit='account'" % (self.pid) ##Null IchState, put in PID and entry pair
+
+        try:
+            cursor.execute(query)
+            self.conn.commit()
+            print("intialized")
+    
+        except MySQLdb.Error as error:
+            print(error)
+            self.conn.rollback()
+            self.conn.close()
             
             
     def GetTotalBalance(self):
