@@ -202,10 +202,10 @@ class Account(object):
             cursor.execute ("SELECT PID FROM `Components` WHERE Unit='account'")
             pid = cursor.fetchone() #find PID for Unit
         
-            if psutil.pid_exists(pid[0]):
-                print("account tracker is still running with pid %d" % (pid[0]))
+            if psutil.pid_exists(pid):
+                print("account tracker is still running with pid %d" % (pid))
             else:
-                print("re-running account tracker ecause PID %s doesn't exist" % (pid[0]))
+                print("re-running account tracker ecause PID %s doesn't exist" % (pid))
                 process = subprocess.call("python ~/Fink/source/account.py -k " + entry.api + " -s " + entry.secret +" > /dev/null 2>&1 & ",  shell=True)
               
         except MySQLdb.Error as error:
@@ -224,10 +224,10 @@ class Account(object):
             cursor.execute(query)
             data = cursor.fetchone()
             
-            if psutil.pid_exists(data[0]):
-                print("agent for %s is still running with pid %d" % (pair, data[0]))
+            if psutil.pid_exists(data):
+                print("agent for %s is still running with pid %d" % (pair, data))
             else:
-                print("Agent with PID: %s is not running, re-running agent for this pair %s" % (data[0],pair))
+                print("Agent with PID: %s is not running, re-running agent for this pair %s" % (data,pair))
                 agent = subprocess.call("python ~/Fink/source/fink.py " + " -p " + pair + " -k " + entry.api + " -s " + entry.secret + " -t "
                 + entry.time + " -m " + entry.buyBuffer + " -n " + entry.sellBuffer + " -ex " + entry.ex + " -l " + entry.limit +" > /dev/null 2>&1 & ",  shell=True)
                 
