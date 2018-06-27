@@ -44,6 +44,10 @@ def GetEntry():
                         action='store',  # tell to store a value
                         dest='r',  # use `paor` to access value
                         help='reset tables')
+    parser.add_argument('-st', '--strat',
+                        action='store',  # tell to store a value
+                        dest='st',  # use `paor` to access value
+                        help='Strategy')
    
     action = parser.parse_args()
     return action

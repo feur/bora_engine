@@ -171,7 +171,7 @@ class MyPair(object):
             
         if (int(entry.st) == 1 or int(entry.st) == 2):
             self.st = int(entry.st)
-            print("Strategy: %d") % (entry.st)
+            print("Strategy: %s") % (entry.st)
         else:
             print("please choose a strategy")
             quit()
