@@ -130,6 +130,11 @@ class Account(object):
             print("clearing tables")
             self.Reset()
             
+        if (entry.st != None):
+            print("Strategty chosen: %s") % (entry.st)
+        else:
+            print("Please choose a strategy")
+            
         print(" ")    
         print("___Parameters Applied !_____")
         print(" " )

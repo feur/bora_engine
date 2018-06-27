@@ -851,7 +851,7 @@ class MyPair(object):
                 
         elif (self.st == 2):
             
-            self.BuyPrice = float(self.tenkansen[0] * self.BuyBuffer)
+            self.BuyPrice = float(self.tenkanSen[0] * self.BuyBuffer)
             
             if (self.active == 1):
                 self.Buy = 1
