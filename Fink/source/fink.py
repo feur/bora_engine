@@ -44,6 +44,10 @@ def GetEntry():
                         action='store',  # tell to store a value
                         dest='time',  # use `paor` to access value
                         help='Time Interval')
+    parser.add_argument('-st', '--strat',
+                        action='store',  # tell to store a value
+                        dest='st',  # use `paor` to access value
+                        help='Strategy')
    
     action = parser.parse_args()
     return action
@@ -158,11 +162,19 @@ class MyPair(object):
             self.SellBuffer = 1.03
             print("Sell Buffer set to default 3%")
             
-        if (entry.ex != None):
+        if (int(entry.ex) == 1):
             self.ex = 1
             print("experiment mode on!")
         else:
+            print("Experiment mode off!")
             self.ex = 0
+            
+        if (int(entry.st) == 1 or int(entry.st) == 2):
+            self.st = int(entry.st)
+            print("Strategy: %d") % (entry.st)
+        else:
+            print("please choose a strategy")
+            quit()
             
         print(" ")    
         print("___Parameters Applied !_____")
@@ -667,9 +679,12 @@ class MyPair(object):
        
        
         self.SellPrice = float(self.tenkanSen[0] * self.SellBuffer)
+        
         if (self.IchState == 1 and self.Direction == 1 and self.EMATrend == 1):
+            
             self.active = 1
             print ("Pair is active")
+            
             ##log the signal
             ts = time.time()
             timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
@@ -741,6 +756,22 @@ class MyPair(object):
             
         if (data['success'] == True):
             print("Buy Order in place")
+            
+             ##log the signal
+            ts = time.time()
+            timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+            cursor = self.conn.cursor()
+            query = "INSERT INTO `AccountHistory`(`PID`, `Pair`, `Amount`, `Price`, `Action`, `ActionTime`) VALUES ('%s','%s',%.9f,%.9f,'BUY','%s')" % (self.pid,self.pairName,self.OrderAmount,self.BuyPrice,timestamp)
+            
+            try:
+                cursor.execute(query)
+                self.conn.commit()
+                
+            except MySQLdb.Error as error:
+                print(error)
+                self.conn.rollback()
+                self.conn.close()    
+                    
         else:
             print(data)
                
@@ -761,7 +792,26 @@ class MyPair(object):
             
             if (data['success'] == True):
                 print("Sell Order in place")
+                
+                ##log the signal
+                ts = time.time()
+                timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+                cursor = self.conn.cursor()
+                query = "INSERT INTO `AccountHistory`(`PID`, `Pair`, `Amount`, `Price`, `Action`, `ActionTime`) VALUES ('%s','%s',%.9f,%.9f,'SELL','%s')" % (self.pid,self.pairName,amount,self.SellPrice,timestamp)
+ 
+                try:
+                    cursor.execute(query)
+                    self.conn.commit()
+                
+                except MySQLdb.Error as error:
+                    print(error)
+                    self.conn.rollback()
+                    self.conn.close()                 
+                
+                
                 break
+            else:
+                print(data)
             
             
     def CheckBuyPosition(self):
@@ -773,31 +823,59 @@ class MyPair(object):
         self.current['C'] < self.tenkanSen[0]  (if price is hovering above )
         '''
         
-        self.BuyPrice = float(self.kijunSen[0] * self.BuyBuffer)
+        if (self.st == 1): ##strat 1 where we buy before ich crossover
+            self.BuyPrice = float(self.kijunSen[0] * self.BuyBuffer)
         
-        if (self.active == 0 and self.current['L'] < self.BuyPrice):
-            self.Buy = 1 
-            print("We're in a position to buy")
-            
-            
-            ##log the signal
-            ts = time.time()
-            timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
-            cursor = self.conn.cursor()
-            query = "INSERT INTO `SignalLog`(`Pair`, `BuyPrice`, `SellPrice`, `TimeInterval`, `Time`) VALUES ('%s',%.9f,0.0,'%s','%s')" % (self.pairName,self.BuyPrice,self.TimeInterval,timestamp)
- 
-            try:
-                cursor.execute(query)
-                self.conn.commit()
+            if (self.active == 0 and self.current['L'] < self.BuyPrice):
+                self.Buy = 1 
+                print("We're in a position to buy")
                 
-            except MySQLdb.Error as error:
-                print(error)
-                self.conn.rollback()
-                self.conn.close()            
+                ##log the signal
+                ts = time.time()
+                timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+                cursor = self.conn.cursor()
+                query = "INSERT INTO `SignalLog`(`Pair`, `BuyPrice`, `SellPrice`, `TimeInterval`, `Time`) VALUES ('%s',%.9f,0.0,'%s','%s')" % (self.pairName,self.BuyPrice,self.TimeInterval,timestamp)
+ 
+                try:
+                    cursor.execute(query)
+                    self.conn.commit()
+                
+                except MySQLdb.Error as error:
+                    print(error)
+                    self.conn.rollback()
+                    self.conn.close()            
             
-        else:
-            print("We're not in a position to buy")
-            self.Buy = 0
+            else:
+                print("We're not in a position to buy")
+                self.Buy = 0
+                
+        elif (self.st == 2):
+            
+            self.BuyPrice = float(self.tenkansen[0] * self.BuyBuffer)
+            
+            if (self.active == 1):
+                self.Buy = 1
+                
+                print("We're in a position to buy")
+            
+                ##log the signal
+                ts = time.time()
+                timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+                cursor = self.conn.cursor()
+                query = "INSERT INTO `SignalLog`(`Pair`, `BuyPrice`, `SellPrice`, `TimeInterval`, `Time`) VALUES ('%s',%.9f,0.0,'%s','%s')" % (self.pairName,self.BuyPrice,self.TimeInterval,timestamp)
+ 
+                try:
+                    cursor.execute(query)
+                    self.conn.commit()
+                
+                except MySQLdb.Error as error:
+                    print(error)
+                    self.conn.rollback()
+                    self.conn.close()            
+            
+            else:
+                print("We're not in a position to buy")
+                self.Buy = 0
             
             
         
@@ -813,12 +891,6 @@ class MyPair(object):
         
         ''' 
             
-        ##different sell buffers for different active zones
-        #if (self.active == 0):
-        #    self.SellPrice = float(self.tenkanSen[0] * self.SellBufferL) 
-        #else:
-       
-            
         
         SellPriceH = float(self.SellPrice * 1.001)
         SellPriceL = float(self.SellPrice * 0.994)       
@@ -827,8 +899,10 @@ class MyPair(object):
             
             if (self.balanceBTC < 0.01 and self.Buy == 1): ##low balance and we're in Buy Zone
                 self.BuyPair() 
-            elif (self.balanceBTC > 0.01): ##only sell when tenkansen 
-                if (self.active == 1):
+                
+            elif (self.balanceBTC > 0.01): 
+            
+                if ((self.st == 2 and self.active == 1) or self.st == 1): ##only sell when we are in active zone for start 1 or whenever when we are in strat 2
                     print("in active selling zone")
                     self.SellPair() ##make a sell order
                 else:
@@ -836,7 +910,7 @@ class MyPair(object):
                 
         elif (self.Order == 1): ##sell order in place
         
-            if (self.active == 1):
+            if ((self.st == 2 and self.active == 1) or self.st == 1):
                 if (self.OrderPrice < SellPriceL or self.OrderPrice > SellPriceH):  ##make sure its in the Sell Order zone 
                     data = self.account.cancel(self.OrderID)                        ##Cancel that Sell Order
                     print("updating sell Order!")
@@ -941,12 +1015,6 @@ class MyPair(object):
                 
                 
         
-         
-    
-            
-                
-                      
-                
 ##program start here
 
 entry = GetEntry() ##Get arguments to define Pair and Fib levels
@@ -988,8 +1056,9 @@ while True:  ##Forever loop
     print(" ")
         
     print("checking order")
-    pair.GetOrder()
-    if (pair.ex == 0):    
+    
+    if (pair.ex == 0):  
+        pair.GetOrder()
         pair.CheckOrder()
     else:
         pair.ExAction()
@@ -998,7 +1067,7 @@ while True:  ##Forever loop
     pair.UploadData() 
    
    
-    time.sleep(3) ## enoguh delay for an order to be complete
+    time.sleep(10) ## enoguh delay for an order to be complete
 
 
 
