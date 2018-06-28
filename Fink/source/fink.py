@@ -48,6 +48,11 @@ def GetEntry():
                         action='store',  # tell to store a value
                         dest='st',  # use `paor` to access value
                         help='Strategy')
+    parser.add_argument('-f', '--fib',
+                        action='store',  # tell to store a value
+                        dest='FibZone',  # use `FibZone` to access value
+                        help='Fib buy zone')
+    
    
     action = parser.parse_args()
     return action
@@ -175,6 +180,13 @@ class MyPair(object):
         else:
             print("please choose a strategy")
             quit()
+            
+        if (entry.FibZone != None):
+            self.FibZone = float(entry.FibZone)
+            print("Fib Buy zone set to: %.9f") % self.FibZone
+        else:
+            self.FibZone = 0.236
+            print("Fib Buy zone set to default 0.236")
             
         print(" ")    
         print("___Parameters Applied !_____")
@@ -585,9 +597,11 @@ class MyPair(object):
             if (self.trMax[i] != 0):
                 self.diPos.append(float(self.dmPosMax[i] / self.trMax[i]) * 100)
                 self.diNeg.append(float(self.dmNegMax[i] / self.trMax[i]) * 100)
-            
+         
+        print(" ")
         print("DI- is: %.9f" % self.diNeg[-1])    
-        print("DI+ is: %.9f" % self.diPos[-1])        
+        print("DI+ is: %.9f" % self.diPos[-1])
+        print(" ")        
         
         if (self.diNeg[-1] > self.diPos[-1]): ##Downtrend
             self.Direction = 0 
@@ -665,9 +679,10 @@ class MyPair(object):
             lowest *= 0
                     
        
- 
+        print(" ")
         print("red at: %.9f" % self.tenkanSen[0])  
-        print("blue at: %.9f" % self.kijunSen[0])  
+        print("blue at: %.9f" % self.kijunSen[0]) 
+        print(" ")
             
         #find state of Tenkansen & Kijunsen as IchState
         if (self.tenkanSen[0] > self.kijunSen[0]): ##red on top of blue
@@ -704,6 +719,29 @@ class MyPair(object):
             print ("Pair is not active")
             self.active = 0
             
+            
+    def GetFibPosition(self):
+        
+        ##find Max 
+
+        high = 0
+        low = 1
+        
+        #Find Max and Min
+        for i in self.data: 
+            if (high < i['C']):
+                high = i['C']
+                
+            if (low > i['C']):
+                low = i['C']
+        
+        self.fibPos = (self.current['C'] - low) / (high - low)
+        print(" ")
+        print("Highest Point: %.9f") % high
+        print("Lowest Point: %.9f") % low
+        print("Currently at %.9f Fib" % (self.fibPos))
+        print (" ")
+    
         
     
     def GetCandleState(self):
@@ -821,12 +859,17 @@ class MyPair(object):
         self.tenkanSen[0] > self.tenkanSenP (current > previous)
         self.tenkanSen[0] > float(self.kijunSen[0] * 1.0025)
         self.current['C'] < self.tenkanSen[0]  (if price is hovering above )
+
+        
         '''
         
         if (self.st == 1): ##strat 1 where we buy before ich crossover
             self.BuyPrice = float(self.kijunSen[0] * self.BuyBuffer)
-        
-            if (self.active == 0 and self.current['L'] < self.BuyPrice):
+            
+            self.GetFibPosition()
+            print(" ")
+            print("Buy Target at : %.9f") % (self.BuyPrice)
+            if (self.active == 0 and self.current['L'] < self.BuyPrice and self.fibPos < self.FibZone): ##we're on the bottom of a downtrend 
                 self.Buy = 1 
                 print("We're in a position to buy")
                 

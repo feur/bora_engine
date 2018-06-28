@@ -48,6 +48,11 @@ def GetEntry():
                         action='store',  # tell to store a value
                         dest='st',  # use `paor` to access value
                         help='Strategy')
+    parser.add_argument('-f', '--fib',
+                        action='store',  # tell to store a value
+                        dest='FibZone',  # use `paor` to access value
+                        help='Fib buy zone')
+    
    
     action = parser.parse_args()
     return action
@@ -240,7 +245,7 @@ class Account(object):
             else:
                 print("Agent with PID: %s is not running, re-running agent for this pair %s" % (data[0],pair))
                 agent = subprocess.call("python ~/Fink/source/fink.py " + " -p " + pair + " -k " + entry.api + " -s " + entry.secret + " -t "
-                + entry.time + " -m " + entry.buyBuffer + " -n " + entry.sellBuffer + " -ex " + entry.ex + " -st " + entry.st + " -l " + entry.limit +" > /dev/null 2>&1 & ",  shell=True)
+                + entry.time + " -m " + entry.buyBuffer + " -n " + entry.sellBuffer + " -ex " + entry.ex + " -st " + entry.st + " -l " + entry.limit + " -f " + entry.FibZone +" > /dev/null 2>&1 & ",  shell=True)
                 
    
         except MySQLdb.Error as error:
@@ -291,6 +296,6 @@ while True:
     for i in range(len(ListofPairs)):
         PersonalAccount.StartAgent(ListofPairs[i],entry)
     print("______________________________________________________")
+    quit()
     
-    
-    time.sleep(60)
+    #time.sleep(60)
