@@ -15,6 +15,10 @@ def GetEntry():
                         action='store',  # tell to store a value
                         dest='secret',  # use `paor` to access value
                         help='Your API Secret')
+    parser.add_argument('-u', '--uid',
+                        action='store',  # tell to store a value
+                        dest='uid',  # use `paor` to access value
+                        help='Your FINK UID')
     parser.add_argument('-l', '--limit',
                         action='store',  # tell to store a value
                         dest='limit',  # use `paor` to access value

@@ -22,13 +22,14 @@ class Account(object):
         print("Applying parameters")
         print(" " )
         
-        if (entry.api != None and entry.secret != None):
+        if (entry.api != None and entry.secret != None and entry.uid != None):
             self.api = entry.api
             self.secret = entry.secret
-            self.account = Bittrex(self.api, self.secret, api_version=API_V2_0) ##now connect to bittrex with api and key
+            self.UID = entry.uid
         else:
-            print("Please insert api & secret key")
+            print("Please insert api & secret key & UID")
             quit()
+            
             
         self.time = entry.time
         
@@ -172,7 +173,7 @@ class Account(object):
                 print("account tracker is still running with pid %s" % (pid[0]))
             else:
                 print("re-running account tracker ecause PID %d doesn't exist" % (pid[0]))
-                process = subprocess.call("python ~/Fink/source/account.py -k " + entry.api + " -s " + entry.secret +" > /dev/null 2>&1 & ",  shell=True)
+                process = subprocess.call("python ~/Fink/account -k " + entry.api + " -s " + entry.secret +" > /dev/null 2>&1 & ",  shell=True)
               
         except MySQLdb.Error as error:
             print(error)
@@ -195,7 +196,7 @@ class Account(object):
                 print("agent for %s is still running with pid %s" % (pair, data[0]))
             else:
                 print("Agent with PID: %s is not running, re-running agent for this pair %s" % (data[0],pair))
-                agent = subprocess.call("python ~/Fink/source/fink.py " + " -p " + pair + " -k " + entry.api + " -s " + entry.secret + " -t "
+                agent = subprocess.call("python ~/Fink/fink " + " -p " + pair + " -k " + entry.api + " -s " + entry.secret + " -u " + entry.uid + " -t "
                 + entry.time + " -m " + entry.buyBuffer + " -n " + entry.sellBuffer + " -d " + entry.distance +  " -ex " + entry.ex + " -st " + entry.st + " -l " + entry.limit + " -f " + entry.FibZone +" > /dev/null 2>&1 & ",  shell=True)
                 
    

@@ -22,7 +22,7 @@ class MyPair(object):
         self.conn = MySQLdb.connect(Fink_DB_HOST,Fink_DB_USER,Fink_DB_PW,Fink_DB_NAME) 
         self.edel = MySQLdb.connect(Edel_DB_HOST,Edel_DB_USER,Edel_DB_PW,Edel_DB_NAME) ##connect to DB
         
-        self.UID = "JJ433KL"
+        
        
         ##experimental stuff
         self.ExBuyPrice = 0
@@ -58,6 +58,7 @@ class MyPair(object):
             print(error)
             self.conn.close()
             
+   
             
             
     def SetParams(self,entry):
@@ -65,13 +66,15 @@ class MyPair(object):
         print("Applying parameters")
         print(" " )
         
-        if (entry.api != None and entry.secret != None):
+        if (entry.api != None and entry.secret != None and entry.uid != None):
             self.api = entry.api
             self.secret = entry.secret
+            self.UID = entry.uid
             self.account = Bittrex(self.api, self.secret, api_version=API_V2_0) ##now connect to bittrex with api and key
         else:
-            print("Please insert api & secret key")
+            print("Please insert api & secret key & UID")
             quit()
+            
         
         if (int(entry.time) == 1): 
             self.TimeInterval = "ONEMIN"
@@ -154,6 +157,11 @@ class MyPair(object):
         print("___Parameters Applied !_____")
         print(" " )
         
+        
+    def GetUID(self):
+        
+         def GetUID(self, entry):
+        "JJ433KL"
         
     def GenerateKey(self):
         
