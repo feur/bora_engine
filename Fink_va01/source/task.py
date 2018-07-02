@@ -173,7 +173,7 @@ class Account(object):
                 print("account tracker is still running with pid %s" % (pid[0]))
             else:
                 print("re-running account tracker ecause PID %d doesn't exist" % (pid[0]))
-                process = subprocess.call("python ~/Fink/account -k " + entry.api + " -s " + entry.secret +" > /dev/null 2>&1 & ",  shell=True)
+                process = subprocess.call("python ~/Fink/source/account/account -k " + entry.api + " -s " + entry.secret +" > /dev/null 2>&1 & ",  shell=True)
               
         except MySQLdb.Error as error:
             print(error)
@@ -196,7 +196,7 @@ class Account(object):
                 print("agent for %s is still running with pid %s" % (pair, data[0]))
             else:
                 print("Agent with PID: %s is not running, re-running agent for this pair %s" % (data[0],pair))
-                agent = subprocess.call("python ~/Fink/fink " + " -p " + pair + " -k " + entry.api + " -s " + entry.secret + " -u " + entry.uid + " -t "
+                agent = subprocess.call("python ~/Fink/source/fink/fink " + " -p " + pair + " -k " + entry.api + " -s " + entry.secret + " -u " + entry.uid + " -t "
                 + entry.time + " -m " + entry.buyBuffer + " -n " + entry.sellBuffer + " -d " + entry.distance +  " -ex " + entry.ex + " -st " + entry.st + " -l " + entry.limit + " -f " + entry.FibZone +" > /dev/null 2>&1 & ",  shell=True)
                 
    

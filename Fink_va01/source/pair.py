@@ -157,11 +157,7 @@ class MyPair(object):
         print("___Parameters Applied !_____")
         print(" " )
         
-        
-    def GetUID(self):
-        
-         def GetUID(self, entry):
-        "JJ433KL"
+
         
     def GenerateKey(self):
         
