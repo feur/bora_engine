@@ -3,6 +3,9 @@ import time
 import MySQLdb
 from settings import *
 from task import *
+import os
+import time
+import datetime
 
 
 def GetEntry():
@@ -95,17 +98,15 @@ except MySQLdb.Error as error:
 print("Number of pairs: %d") % len(ListofPairs)
 print(" ")
 
-while True:
-     
-    print(" ")
-    print("Checking account tracker:")
-    PersonalAccount.StartAccount(entry)
-    print(" ")
-    print("Checking all Fink agents:")
-    print(" ")
-    for i in range(len(ListofPairs)):
-        PersonalAccount.StartAgent(ListofPairs[i],entry)
-    print("______________________________________________________")
-    quit()
+
+print(" ")
+print("Checking account tracker:")
+PersonalAccount.StartAccount(entry)
+print(" ")
+print("Checking all Fink agents:")
+print(" ")
+for i in range(len(ListofPairs)):
+    PersonalAccount.StartAgent(ListofPairs[i],entry)
+print("______________________________________________________")
+
     
-    #time.sleep(60)

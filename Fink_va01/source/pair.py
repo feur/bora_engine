@@ -945,7 +945,7 @@ class MyPair(object):
                 
             elif (self.balanceBTC > 0.01): 
             
-                if ((self.st == 2 and self.active == 1) or self.st == 1): ##only sell when we are in active zone for start 1 or whenever when we are in strat 2
+                if ((self.st == 1 and self.active == 1) or self.st == 2): ##only sell when we are in active zone for start 1 or whenever when we are in strat 2
                     print("in active selling zone")
                     self.SellPair() ##make a sell order
                 else:
@@ -953,7 +953,7 @@ class MyPair(object):
                 
         elif (self.Order == 1): ##sell order in place
         
-            if ((self.st == 2 and self.active == 1) or self.st == 1):
+            if ((self.st == 1 and self.active == 1) or self.st == 2):
                 if (self.OrderPrice < SellPriceL or self.OrderPrice > SellPriceH):  ##make sure its in the Sell Order zone 
                     data = self.account.cancel(self.OrderID)                        ##Cancel that Sell Order
                     print("updating sell Order!")

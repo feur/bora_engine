@@ -173,7 +173,7 @@ class Account(object):
                 print("account tracker is still running with pid %s" % (pid[0]))
             else:
                 print("re-running account tracker ecause PID %d doesn't exist" % (pid[0]))
-                process = subprocess.call("python ~/Fink/source/account/account -k " + entry.api + " -s " + entry.secret +" > /dev/null 2>&1 & ",  shell=True)
+                process = subprocess.call("~/Fink/source/account/account -k " + entry.api + " -s " + entry.secret +" > /dev/null 2>&1 & ",  shell=True)
               
         except MySQLdb.Error as error:
             print(error)
@@ -196,7 +196,7 @@ class Account(object):
                 print("agent for %s is still running with pid %s" % (pair, data[0]))
             else:
                 print("Agent with PID: %s is not running, re-running agent for this pair %s" % (data[0],pair))
-                agent = subprocess.call("python ~/Fink/source/fink/fink " + " -p " + pair + " -k " + entry.api + " -s " + entry.secret + " -u " + entry.uid + " -t "
+                agent = subprocess.call("~/Fink/source/fink/fink " + " -p " + pair + " -k " + entry.api + " -s " + entry.secret + " -u " + entry.uid + " -t "
                 + entry.time + " -m " + entry.buyBuffer + " -n " + entry.sellBuffer + " -d " + entry.distance +  " -ex " + entry.ex + " -st " + entry.st + " -l " + entry.limit + " -f " + entry.FibZone +" > /dev/null 2>&1 & ",  shell=True)
                 
    
@@ -205,49 +205,4 @@ class Account(object):
             self.conn.close()
               
                 
-##program start here
-                
-pid = os.getpid()  ##Get process pid
-entry = GetEntry() ##Get params
-ListofPairs = []   ##list of Pairs, e.g. BTC-ADA, ETH-ADA
-ListofCurrencies= [] ##list of Currencies e.g. ADA, OMG
 
-print("pid is: %d" % pid)
-
-
-PersonalAccount = Account()
-PersonalAccount.SetParams(entry)
-
-cursor = PersonalAccount.conn.cursor()
-query = "SELECT * FROM Pairs"
-
-try:
-    cursor.execute(query)
-    data = cursor.fetchall()   
-    for i in range(len(data)):
-        ListofPairs.append(str(data[i][0]))
-        ListofCurrencies.append(str(data[i][1]))
-       
-        
-except MySQLdb.Error as error:
-    print(error)
-    PersonalAccount.conn.close()    
-
-
-print("Number of pairs: %d") % len(ListofPairs)
-print(" ")
-
-while True:
-     
-    print(" ")
-    print("Checking account tracker:")
-    PersonalAccount.StartAccount(entry)
-    print(" ")
-    print("Checking all Fink agents:")
-    print(" ")
-    for i in range(len(ListofPairs)):
-        PersonalAccount.StartAgent(ListofPairs[i],entry)
-    print("______________________________________________________")
-    quit()
-    
-    #time.sleep(60)
