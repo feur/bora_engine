@@ -2,4 +2,4 @@
 
 killall python
 
-~/Fink/source/account/account -k 5e11284c284449beb4746c5140b8e2af -s f19ae69dc7a1457db23419e935bb07e3
+~/Fink/source/account/account -k f5d8f6b8b21c44548d2799044d3105f0 -s b3845ea35176403bb530a31fd4481165
