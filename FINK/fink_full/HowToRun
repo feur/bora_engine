@@ -1,0 +1,119 @@
+Components: 
+
+1. Fink Agent (Source/Fink) --> the Trading agent
+2. Manager (Source/Manager) --> Task manager to monitor agents
+3. Account (Source/Account) --> Simple app to track your holdings 
+
+
+
+Requirements: 
+- A MySQLDB server setup (Easy how to can found on DigitalOcean guide on settign up a LEMP Server) 
+- A Web server, can be apache or nginx, I prefer nginx, which also can be found on the DigitalOCean guide
+- I suggest installing phpmyadmin to allow you easy access to the DB (to insert pairs and so forth). 
+
+
+Pre - Steps: 
+
+1.) Copy Fink_full onto your Home folder ~/... and rename the folder to Fink. (This makes sure that manager application can find the fink agent executables properly)
+2.) Create a database called Fink and restore with the .sql provided (Fink.sql)
+3.) Make sure that there is a user registered as "Fink" with password "Amm02o16!" --> this is the user that will be used by all components to access Fink Database.
+4.) Make sure the Fink user has proper rights to read and write to the Fink DB. 
+5.) Copy the front-end folder to your /var/www/html or whatever web-server setup you have so that you can access it via your IP --> xx.xx.xx.xx/fink/index.php
+6.) chmod a+x all start scripts (just go on the terminal, enter the Fink directory and type, chmod a+x start* and chmod a+x kill.sh)
+
+
+What's in the database?
+
+- Right now the databse is empty except the list of pairs: There are 20+ pairs isnide. 
+
+
+
+1.) Running the Agent: 
+
+To run the agent, the command is (also on start.sh): 
+
+~/Fink/source/fink/fink -p BTC-FCT -k xx -s xx -u xx -t 5 -e 10 -f 0.2 -m 0.99 -d 1.005 -n 1.02 -l 0.04 -ex 0 -st 1 
+
+The arguments required: 
+
+1.) -p --> pair to trade, make sure this pair exists on the Database or else it will give you an error
+2.) -k --> api key 
+3.) -s --> api secret
+4.) -u --> Unique ID (provided by me)
+5.) -t --> time interval (you have a choice of 1 minute, 5 minute, 30 minute, 60 minute), this is your trading interval. 
+6.) -e --> delay between each cycle, Bittrex has a limit on api calls (60 calls per minute), going over the limit can prevent any further api calls for 60 seconds, this could affect your entry or exit. 
+    	   Therefore you don't want to have too many agents making too many api calls, there should be a delay between each cycle to prevent throttling. Adjust e to be the number of pairs you are 		   running (e.g. 40 pairs --> 40 seconds, -e 40)
+7.) -f --> Fib zone, once the price enters this Fib zone (Fib position is based on the given data set), Fink agent will look for a poisiton to buy
+8.) -m --> Your buy buffer. After entering the Fib zone, Fink agent will monitor when the price has fallen below Kijunsen * Buy Buffer. This is just an added measure to ensure you are buying at a sweet 		   spot. 
+9.) -d --> Fink agent will not set a sell order, even wehn the Pair is at the seling zone, until the distance between Tenkansen and Kijusen is > -d. 
+10.) -n --> Your sell buffer. When the Pair enters the selling zone (active zone), Fink agent will set a sell order at a price = Tenkansen * Sell Buffer. 
+11.) -l --> Your buy limit. Specify the amount of BTC should be used for buy orders. Be mindful that the easier you spread out the higher the chance to pick up a good return. Don't put everything into  	    one basket, I advice spreading out over 5 - 10 pairs. A big buy limit could mean that your buy order won't get filled 100%, so the smaller the easier it can get filled. 
+12.)-ex --> Experimentation mode --> for simulations (see below). 
+13.) -st --> Startegy, I've included a space for a second startegy but please do not use this one for now, use -st 1. -st 2 is still in progress and testing. 
+
+
+
+For a better understanding of -f,-m,-n,-d, have a look at TA.jpg. Couple of things to note with these parameters: 
+
+1.) -f --> Going to high increases the possibilty that the pair will fall into a lower fib zone, e.g. -f 0.3 , there is a chance that the market will enter -f 0.2, this could affect your returns. 
+           Going to low will decrease the possibilty of finding a pair to buy, e.g. -f 0.05 might yield only 1 out of 25 pairs, -f 0.2 could yield 5 out of 25 pairs. 
+
+2.) -m --> Going too low will decrease the possibility of finding a pair to buy, even with a high -f. You can find price dropping to 10% below Kijunsen (-m 0.9) but that mostly occurs at a higher -f 	
+	   (e.g. -f 0.5). 
+
+3.) -n --> Going too high will decease the possibility of your sell order being filled. The sell order is continuolsy adjusted based on the position of the Tenkansen (red line on TA.jpg). Having too 		   high of a sell buffer (e..g -n 1.1) could mean you miss out on the selling window and this could affect your lossess. Remember, don't be greedy with your gains. 
+
+4.) -d --> Distance between Tenkasen and Kijunsen. There is the possibilty of selling too early which maybe due to a low sell buffer (-n). Bittrex has a fee of 0.5% per order (including buy and sell), 		   so if your -n = 1.01, that will only yield 1.005 return. I recommend -d to be adjusted to a minimum 1.005 (0.5%) to account for the fee affecting your returns. Likewise, don't be greedy and 
+	   set a high -d, this could mean missing out on a sell window. 
+
+
+Experimentation mode: 
+
+If you want to run Fink with custom parameters, you can run the agent in simulation mode. The agent will simulate buy and sell orders and log all results in the databse under the table "ExLog". From there you can get a sense of the amount of returns you can have, but also the probability of buy / sell orders executing. I don't have yet a program to view the simulated results, I access them via PHPMyAdmin and export it as a csv file for review. 
+
+
+2.) Running the Manager: 
+
+~/Fink/source/manager/manager -k xx -s xx -u xx -t 5 -e 30 -m 0.99 -n 1.02 -d 1.005 -l 0.04 -f 0.2 -ex 0 -st 1 -r x 
+
+
+It takes the same arguments as Fink because it just simply passess it to the agents. It will access the DB and checks if agents are running based on their PID's. You can attach manager to cron and have it run periodically. There is however 1 argument that you should be careful off:
+
+-r  --> Reset the databse. This will clear all tables and re-inserts default pairs into the Database. It will acquire a list of pairs from my private database (40+ pairs) and re-inserts it into your database. So if you don't want that to happen, don't include -r. 
+
+
+3.) Runnig the Account Program: 
+
+~/Fink/source/account/account -k xx -s xx
+
+Runing the manager will run the Account program automatically in background. 
+
+
+
+Handy DB commands: 
+
+I don't have yet a application to easily insert Pairs into the Database, I insert them manually through PHPMyAdmin, but I presume most won't know how to use that but know the basics of accessing MySQLDB via the terminal. When you access the Fink DB either thorugh PHPMyAdmin or via the terminal, you can use the following: 
+
+
+DELETE FROM `Pairs` WHERE 1;   							--> to clear all the list of Pairs
+DELETE FROM `Pairs` WHERE Pair='(pairname)'; 					--> to delete a certain pair
+INSERT INTO `Pairs`(`Pair`, `Currency`) VALUES ([pairname],[currency]); 	--> to insert a pair and the currency, e.g. (BTC-DOPE, DOPE)	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

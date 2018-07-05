@@ -1,0 +1,83 @@
+Components: 
+
+1. Fink Agent (Source/Agent) --> a Single Fink Agent
+2. Fink Lite (Source/Manager) --> Compact version of the Fink system
+3. Account (Source/Account) --> Simple app to track your holdings 
+
+
+
+Requirements: 
+- No requirements, just run the executable with the right parameter (I advise using the default parameters)  
+- Make sure you point the startup scripts to the right directory (default is home directory). 
+
+
+1.) Runing Fink lite: 
+
+To run Fink lite, the command is (also on startLite.sh): 
+
+~/Fink_lite/source/fink_lite/fink_lite -k xx -s xx -u xx -t 5 -e 10 -m 0.99 -n 1.02 -d 1.005 -l 0.04 -f 0.2 -st 1 
+
+The arguments required: 
+
+1.) -k --> api key 
+2.) -s --> api secret
+3.) -u --> Unique ID (provided by me)
+4.) -t --> time interval (you have a choice of 1 minute, 5 minute, 30 minute, 60 minute), this is your trading interval. 
+5.) -e --> delay between each cycle, Bittrex has a limit on api calls (60 calls per minute), going over the limit can prevent any further api calls for 60 seconds, this could affect your entry or exit. 
+    	   Therefore you don't want to have too many agents making too many api calls, there should be a delay between each cycle to prevent throttling. Keep -e at 10 seconds
+7.) -f --> Fib zone, once the price enters this Fib zone (Fib position is based on the given data set), Fink agent will look for a poisiton to buy
+6.) -m --> Your buy buffer. After entering the Fib zone, Fink agent will monitor when the price has fallen below Kijunsen * Buy Buffer. This is just an added measure to ensure you are buying at a sweet 		   spot. 
+7.) -d --> Fink agent will not set a sell order, even when the Pair is at the seling zone, until the distance between Tenkansen and Kijusen is > -d. 
+8.) -n --> Your sell buffer. When the Pair enters the selling zone (active zone), Fink agent will set a sell order at a price = Tenkansen * Sell Buffer. 
+9.) -l --> Your buy limit. Specify the amount of BTC should be used for buy orders. Be mindful that the easier you spread out the higher the chance to pick up a good return. Don't put everything into  	    one basket, I advice spreading out over 5 - 10 pairs. A big buy limit could mean that your buy order won't get filled 100%, so the smaller the easier it can get filled. 
+11.) -st --> Startegy, I've included a space for a second startegy but please do not use this one for now, use -st 1. -st 2 is still in progress and testing. 
+
+
+You can't specify which Pairs it will trade, as it will connect to my private list of pairs (40+ pairs) and trade those 1-1 instead of in parallell. Although you can run it on the background, it does not log any of its actions. 
+
+
+2.) Running the single Agent: 
+
+To run the agent, the command is (also on start.sh): 
+
+~/Fink_lite/source/agent/agent -p BTC-DOPE -c DOPE -k x -s x -u x -t 5 -e 10 -m 0.99 -n 1.02 -d 1.005 -l 0.04 -f 0.2 -st 1 
+
+The arguments required: 
+
+1.) -p --> Pair for trading
+2.) -c --> the Currency
+3.) -k --> api key 
+4.) -s --> api secret
+5.) -u --> Unique ID (provided by me)
+6.) -t --> time interval (you have a choice of 1 minute, 5 minute, 30 minute, 60 minute), this is your trading interval. 
+7.) -e --> delay between each cycle, Bittrex has a limit on api calls (60 calls per minute), going over the limit can prevent any further api calls for 60 seconds, this could affect your entry or exit. 
+    	   Therefore you don't want to have too many agents making too many api calls, there should be a delay between each cycle to prevent throttling. Adjust e to be the number of pairs you are 		   running (e.g. 40 pairs --> 40 seconds, -e 40)
+8.) -f --> Fib zone, once the price enters this Fib zone (Fib position is based on the given data set), Fink agent will look for a poisiton to buy
+9.) -m --> Your buy buffer. After entering the Fib zone, Fink agent will monitor when the price has fallen below Kijunsen * Buy Buffer. This is just an added measure to ensure you are buying at a sweet 		   spot. 
+10.) -d --> Fink agent will not set a sell order, even wehn the Pair is at the seling zone, until the distance between Tenkansen and Kijusen is > -d. 
+11.) -n --> Your sell buffer. When the Pair enters the selling zone (active zone), Fink agent will set a sell order at a price = Tenkansen * Sell Buffer. 
+12.) -l --> Your buy limit. Specify the amount of BTC should be used for buy orders. Be mindful that the easier you spread out the higher the chance to pick up a good return. Don't put everything into  	    one basket, I advice spreading out over 5 - 10 pairs. A big buy limit could mean that your buy order won't get filled 100%, so the smaller the easier it can get filled. 
+13.) -st --> Startegy, I've included a space for a second startegy but please do not use this one for now, use -st 1. -st 2 is still in progress and testing. 
+
+
+The single agent does not need a database and you can easily create your own scripts to use this single Agent as long as you provide it the right parameters. This agent can be executed on the background but it will not log any of its actions. 
+
+
+3.) Runnig the Account Program: 
+
+~/Fink/source/account/account -k xx -s xx
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
