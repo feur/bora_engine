@@ -1,0 +1,13 @@
+('/usr/local/lib/python2.7/dist-packages/certifi-2017.11.5-py2.7.egg',
+ None,
+ set(['*.py', '*.pyc', '*.pyd', '*.pyo', '*.so', 'EGG-INFO']),
+ 'DATA',
+ [('certifi/weak.pem',
+   '/usr/local/lib/python2.7/dist-packages/certifi-2017.11.5-py2.7.egg/certifi/weak.pem',
+   'DATA'),
+  ('certifi/old_root.pem',
+   '/usr/local/lib/python2.7/dist-packages/certifi-2017.11.5-py2.7.egg/certifi/old_root.pem',
+   'DATA'),
+  ('certifi/cacert.pem',
+   '/usr/local/lib/python2.7/dist-packages/certifi-2017.11.5-py2.7.egg/certifi/cacert.pem',
+   'DATA')])
