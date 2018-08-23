@@ -11,6 +11,7 @@ import numpy as np
 #from pair import *
 from settings import *
 #from ta import *
+from epython import offload
 
 
 
@@ -95,10 +96,13 @@ def BackTest(close, low, high, CRMI, Floor, rl, IchtPeriod, lp, sl):
     wins = 0
     profit = 0
     
-    fee = 0.0055 ##0.55% fee 
+    fee = 0.0055 
     
+    i = len(close)-2-lp
     
-    for i in range (len(close)-1-lp,len(close)-2):
+    while i < len(close)-2:
+    
+        i += 1
         
         if (CRMI[i] <= Floor):
             state = 1
@@ -113,9 +117,9 @@ def BackTest(close, low, high, CRMI, Floor, rl, IchtPeriod, lp, sl):
                         
                             
         elif (hold == 1 and (order == 0 or order == 2)):
-            absolutemin = float(initial * (1+fee))      ##absolute minimum is to cover the fee
-            minimum = float(close[i] * (rl + fee))    ##minium is just slighlty above the fee
-            maximum = float(initial * rl)          ## maximum return limit
+            absolutemin = float(initial * (1+fee))      
+            minimum = float(close[i] * (rl + fee))   
+            maximum = float(initial * rl)         
 
             position = float((close[i]) / initial)
                         
@@ -131,11 +135,11 @@ def BackTest(close, low, high, CRMI, Floor, rl, IchtPeriod, lp, sl):
             order = 2
                                          
          
-        if order == 1 and buyPrice >= low[i+1]: ## to make sure order is completed 
+        if order == 1 and buyPrice >= low[i+1]:  
             buy = buyPrice
             hold = 1    
             order = 0
-            initial = buy ##initial position
+            initial = buy 
                     
                         
         if order == 2 and sellPrice <= high[i+1]:
@@ -153,7 +157,7 @@ def BackTest(close, low, high, CRMI, Floor, rl, IchtPeriod, lp, sl):
                         
                             
                             
-    if (hold == 1): ##take care of unifnihsed business
+    if (hold == 1): 
         sell = close[i]                           
                                     
         r = float(float(float(sell)/float(buy) - 1.005)*100)
@@ -1055,16 +1059,7 @@ class MyPair(object):
         
         
        
-        
-        
-   
-            
     
-
-    
-
-
-
 entry = GetEntry() 
 pair = MyPair(entry)
 pair.SetParams(entry)
