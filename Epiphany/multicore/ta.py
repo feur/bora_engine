@@ -1,10 +1,7 @@
 from bittrex.bittrex import *
-import argparse
-import MySQLdb
-import traceback
-import datetime
 from settings import *
 import numpy as np
+
 
 
 
@@ -90,6 +87,97 @@ def GetFramedData(data,window):
 
         return data_window
 
+
+@offload
+def BackTest(close, low, high, CRMI, Floor, rl, IchtPeriod, lp, sl):
+    
+    result = [0,0,0,0] #Profit, Wins, Lossess
+    
+    state = 0
+    order = 0
+    hold = 0
+    initial = 0
+    bought = 0
+    loss = 0
+    wins = 0
+    profit = 0
+    
+    fee = 0.0055 ##0.55% fee 
+    
+    
+    for i in range (len(close)-1-lp,len(close)-2):
+        
+        if (CRMI[i] <= Floor):
+            state = 1
+        else: 
+            state = 0
+            order = 0
+                            
+        if (hold == 0 and state == 1 and (order == 0 or order == 1)):
+            buyPrice = close[i]
+            bought += 1   
+            order = 1
+                        
+                            
+        elif (hold == 1 and (order == 0 or order == 2)):
+            absolutemin = float(initial * (1+fee))      ##absolute minimum is to cover the fee
+            minimum = float(close[i] * (rl + fee))    ##minium is just slighlty above the fee
+            maximum = float(initial * rl)          ## maximum return limit
+
+            position = float((close[i]) / initial)
+                        
+            if (position < 1 and minimum > absolutemin):
+                sellPrice = minimum
+            elif (position >= 1): ##current closing price at initial or above
+                sellPrice = maximum
+            elif position <= sl: ##stop loss
+                sellPrice = close[i] 
+            else:
+                sellPrice = absolutemin
+                
+            order = 2
+                                         
+         
+        if order == 1 and buyPrice >= low[i+1]: ## to make sure order is completed 
+            buy = buyPrice
+            hold = 1    
+            order = 0
+            initial = buy ##initial position
+                    
+                        
+        if order == 2 and sellPrice <= high[i+1]:
+            sell = sellPrice
+            hold = 0 
+            order = 0
+            r = float(float(float(sell)/float(buy) - 1.005)*100)
+                        
+            if (r < 0):
+                loss += 1
+            elif (r > 0):
+                wins += 1
+                            
+            profit = float(profit)+float(r)
+                        
+                            
+                            
+    if (hold == 1): ##take care of unifnihsed business
+        sell = close[i]                           
+                                    
+        r = float(float(float(sell)/float(buy) - 1.005)*100)
+        
+        if (r < 0):
+            loss += 1
+        elif (r > 0):
+            wins += 1
+                            
+        profit = float(profit)+float(r)
+        
+    result[0] = profit
+    result[1] = wins
+    result[2] = loss   
+    result[3] = Floor
+    return result 
+    
 
 
 

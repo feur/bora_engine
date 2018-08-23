@@ -1,5 +1,4 @@
 from bittrex.bittrex import *
-import statistics 
 import os
 import MySQLdb
 import time
@@ -7,8 +6,7 @@ import datetime
 from settings import *
 from ta import *
 import numpy as np
-from epython import offload
-
+#from epython import offload
 
 
 
@@ -22,8 +20,7 @@ class MyPair(object):
 
         
         self.edel = MySQLdb.connect(Edel_DB_HOST,Edel_DB_USER,Edel_DB_PW,Edel_DB_NAME) ##connect to DB
-        
-               
+    
         self.balance = 0
         self.Prevbalance = 0
         self.RMI = 0
@@ -173,8 +170,7 @@ class MyPair(object):
             
         if (int(entry.ex) == 1):
             self.ex = 1
-            
-            import matplotlib.pyplot as plt
+    
             print("experimentation on, trading disabled")
         else:
             self.ex = 0 
@@ -724,7 +720,7 @@ class MyPair(object):
             if (self.ex == 0):
                 self.MaintainOrder()
             else:
-                self.PlotData()
+                print("Experiment Done")
      
         else:
             print("NOT READY TO TRADE")
@@ -741,28 +737,14 @@ class MyPair(object):
         self.IchD *= 0
         self.senkouB *= 0
         self.senkouA *= 0
-        self.RollingFib *= 0
-        
-        
-        
-        
-        self.BuyOrder = []
-        self.BuyTime = []
-        self.SellOrder = [] 
-        self.SellTime = []
-        self.BuySignals = []
-        self.SellSignals = []
-        self.BuySignalsTime = []
-        self.SellSignalsTime = []
-        
         
         self.rl = 0
         #Roof = max(self.SMAIchD)
     
-        
-        
         IchtPeriod = 40
-        
+        bestsignals = 1
+        self.bestprofit = -100
+        result = []
         
         print(" ")
         print("...Optimizing Params, Figuring out what's the best for us....")
@@ -785,13 +767,41 @@ class MyPair(object):
                 Floor = max(self.SMAIchD)
                 
                 while (Floor >= min(self.SMAIchD)):
+                       
+                    print("Ichimoku Period at: %d Return Limit at: %.9f Floor at: %.9f") %(IchtPeriod, rl,Floor)
                     
-                    Floor = float(Floor - 0.001)
+                    result *= 0
+                    ##Get 16 different results
+                    for i in range (0,15):
+                       result.append(BackTest(self.close, self.low, self.high, self.SMAIchD, Floor, rl, IchtPeriod, self.lp, self.sl, target=[i+1], async=True))
+                       #result.append(BackTest(self.close, self.low, self.high, self.SMAIchD, Floor, rl, IchtPeriod, self.lp, self.sl))
+                       Floor = float(Floor - 0.001)
+                       
+                    result[15].wait()
+                       
+                    for i in range (0,15):      
+                        print("profit %.9f") % result[i][0]    
+                        if (self.agLvl == 0 and result[i][0] > self.bestprofit and result[i][0] > 0 and result[i][2] == 0 ) or (self.agLvl == 1 and result[i][0] > self.bestprofit and result[i][0] > 0 and (result[i][1] + result[i][2]) > bestsignals and result[i][2] == 0) or (self.agLvl == 2 and result[i][0] > 0 and (result[i][1] + result[i][2]) > bestsignals and result[i][2] == 0):       
                 
-                    print("Ichimoku Period at: %d Return Limit at: %.9f Roof at: %.9f") %(IchtPeriod, rl,Floor)
-                
-                    self.BackTest(Floor, rl, IchtPeriod)
+                            self.bestprofit = result[i][0]
+                            self.bestwins = result[i][1]
+                            self.bestloss= result[i][2]
+                    
+                   
+                            bestsignals = result[i][1] + result[i][0]
+                            print("")
+                            print("Best profit at %.9f" ) % self.bestprofit
+                            print("Amount of wins: %d") % (self.bestwins)
+                            print("Amount of Lossess: %d") % (self.bestloss)
+                            print("")
+                    
+
+                            self.rl = rl
+                            self.BestFloor = result[i][3]
+                            self.IchPeriod = IchtPeriod
                            
+                        
+                        
 
         hold = float((float(self.close[-1]) / float(self.close[len(self.close)-1-self.lp]) - 1.005) * 100)
         OptimizeFinishTime = datetime.datetime.now()
@@ -829,226 +839,7 @@ class MyPair(object):
             self.ready = 0
             
             
-    @offload
-    def BackTest(self, Floor, rl, IchtPeriod):
-        
-        fee = 0.0055 ##0.55% fee
-        
-        profit = 0
-        wins = 0
-        loss = 0
-        r = 0
-        bought = 0
-                    
-        initial = 0
-        wins = 0
-        loss = 0
-                
-        hold = 0 
-        order = 0
-        state = 0
-        
-        profit = 0
-       
-        buy = 0
-        sell = 0
-        hold = 0
-        buyPrice = 0
-        sellPrice = 0
-        
-        bestsignals = 1
-        self.bestprofit = -100
-        self.bestwins = 0
-        self.bestloss= 0
-        
-
-        BuyOrder = []
-        BuyTime = []
-        SellOrder = []  
-        SellTime = []
-        BuySignals = []
-        SellSignals = []
-        BuySignalsTime = []
-        SellSignalsTime = []
-        
-        
-        for i in range (len(self.close)-1-self.lp,len(self.close)-2):
-                        
-                        if (self.SMAIchD[i] <= Floor):
-                            state = 1
-                        else: 
-                            state = 0
-                            order = 0
-                            
-                        if (hold == 0 and state == 1 and (order == 0 or order == 1)):
-                            buyPrice = self.close[i]
-                            bought += 1
-                            BuySignals.append(self.open[i])
-                            BuySignalsTime.append(self.time[i])
-                        
-                            order = 1
-                        
-                            
-                        elif (hold == 1 and (order == 0 or order == 2)):
-                            absolutemin = float(initial * (1+fee))      ##absolute minimum is to cover the fee
-                            minimum = float(self.close[i] * (rl + fee))    ##minium is just slighlty above the fee
-                            maximum = float(initial * rl)          ## maximum return limit
-
-                            position = float((self.close[i]) / initial)
-                        
-                            if (position < 1 and minimum > absolutemin):
-                                sellPrice = minimum
-                            elif (position >= 1): ##current closing price at initial or above
-                                sellPrice = maximum
-                            elif position <= self.sl: ##stop loss
-                                sellPrice = self.close[i] 
-                            else:
-                                sellPrice = absolutemin
-                        
-                            order = 2
-                                         
-         
-                        if order == 1 and buyPrice >= self.low[i+1]: ## to make sure order is completed 
-                            buy = buyPrice
-                            hold = 1    
-                            order = 0
-                            initial = buy ##initial position
-                            BuyOrder.append(buy)
-                            BuyTime.append(self.time[i]) 
-                    
-                        
-                        if order == 2 and sellPrice <= self.high[i+1]:
-                            sell = sellPrice
-                            hold = 0 
-                            order = 0
-                            r = float(float(float(sell)/float(buy) - 1.005)*100)
-                        
-                            if (r < 0):
-                                loss += 1
-                            elif (r > 0):
-                                wins += 1
-                            
-                            profit = float(profit)+float(r)
-                        
-                            SellOrder.append(sell)
-                            SellTime.append(self.time[i]) 
-                            
-                            
-        if (hold == 1): ##take care of unifnihsed business
-            sell = self.close[i]
-            SellOrder.append(sell)
-            SellTime.append(self.time[i])                                    
-                                    
-            r = float(float(float(sell)/float(buy) - 1.005)*100)
-                        
-            if (r < 0):
-                loss += 1
-            elif (r > 0):
-                wins += 1
-                            
-            profit = float(profit)+float(r)
-                                
-                                
-        print("profit %.9f") % profit       
-        if (self.agLvl == 0 and profit > self.bestprofit and profit > 0 and loss == 0 ) or (self.agLvl == 1 and profit > self.bestprofit and profit > 0 and bought > bestsignals and loss == 0) or (self.agLvl == 2 and profit > 0 and bought > bestsignals and loss == 0):       
-                
-                        self.bestprofit = profit
-                        self.bestwins = wins
-                        self.bestloss= loss
-                    
-                   
-                        bestsignals = bought
-                        print("")
-                        print("Best profit at %.9f" ) % self.bestprofit
-                        print("Amount of wins: %d") % (self.bestwins)
-                        print("Amount of Lossess: %d") % (self.bestloss)
-                        print("")
-                    
-                        self.BuyOrder *= 0
-                        self.BuyTime *= 0
-                        self.SellOrder *= 0 
-                        self.SellTime *= 0
-                    
-                        self.BuyOrder = list(BuyOrder)
-                        self.BuyTime = list(BuyTime)
-                        self.SellOrder = list(SellOrder) 
-                        self.SellTime = list(SellTime)
-                    
-                        self.BuySignals = list(BuySignals)
-                        self.SellSignals = list(SellSignals)
-                        self.BuySignalsTime = list(BuySignalsTime)
-                        self.SellSignalsTime = list(SellSignalsTime)
-                    
-                        self.rl = rl
-                        self.BestFloor = Floor
-                        self.IchPeriod = IchtPeriod
     
-    
-    
-    
-    def PlotData(self):
-        
-        ##Got to cut the data down
-        SMA = []
-        tenkanSen = []
-        kijunSen = []
-        SMAIchD = []
-        IchD = []
-        RollingFib = []
-        timeD = []
-        SMAIchDSMA = []
-        close = []
-        roc = []
-        
-        
-        for i in range (len(self.close)-self.lp-1, len(self.close)-1):
-            close.append(self.close[i])
-            SMA.append(self.SMA[i])
-            tenkanSen.append(self.tenkanSen[i])
-            kijunSen.append(self.kijunSen[i])
-            #RollingFib.append(self.RollingFib[i])
-            IchD.append(self.IchD[i])
-            timeD.append(self.time[i])
-            SMAIchD.append(self.SMAIchD[i])
-            SMAIchDSMA.append(self.SMAIchDSMA[i])
-                    
-        
-        #plt.plot(self.time, self.close, label='Closing Price',color='black', linewidth=0.1)
-        plt.figure(1)
-        
-        plt.subplot(211)
-        plt.plot(self.BuyTime, self.BuyOrder, '^', markersize=7, color='g', label = 'Bought')
-        plt.plot(self.SellTime, self.SellOrder, 'v', markersize=7, color='r', label = 'Sold')
-        plt.plot(self.BuySignalsTime, self.BuySignals, '^', markersize=3, color='blue', label ='Buy Signal')
-        plt.plot(self.SellSignalsTime, self.SellSignals, 'v', markersize=3, color='blue', label = 'Sell Signal')
-        plt.plot(timeD, close, label='Close',color='black',linewidth=0.3)
-        
-        
-       # plt.plot(timeD, SMA, color = 'red', label='SMA')
-       # plt.plot(timeD, kijunSen, color = 'blue', label='kijunSen')
-        
-        plt.title(self.pairName)
-        plt.ylabel('price')
-        plt.xlabel('period')
-        
-        
- 
-        plt.legend(loc=0)
-
-        plt.subplot(212)
-        #plt.plot(timeD, IchD, color = 'red', label='ICHD')
-        plt.plot(timeD, SMAIchD, color = 'red', label='Difference')
-        #plt.plot(timeD, SMAIchDSMA, color = 'blue', label='SMA')
-        plt.title("Custom Relative Momentum Indicator")
-        plt.xlabel('period')
-        
-        #plt.subplot(313)
-        #plt.plot(timeD, RollingFib, color = 'blue')
-        #plt.title("Fib Retracement Level")
-        #plt.xlabel('period')
-        
-        
-        plt.show()
             
             
     def UploadData(self):
