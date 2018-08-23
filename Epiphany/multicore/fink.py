@@ -85,6 +85,9 @@ def GetEntry():
 @offload
 def BackTest(close, low, high, CRMI, Floor, rl, IchtPeriod, lp, sl):
     
+    import math
+    import decimal
+    
     result = [0,0,0,0] #Profit, Wins, Lossess
     
     state = 0
@@ -97,7 +100,8 @@ def BackTest(close, low, high, CRMI, Floor, rl, IchtPeriod, lp, sl):
     profit = 0
     
     fee = 0.0055 
-    
+    buyPrice = 0
+    sellPrice = 0
     i = len(close)-2-lp
     
     while i < len(close)-2:
