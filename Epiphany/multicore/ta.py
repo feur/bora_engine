@@ -1,10 +1,3 @@
-from bittrex.bittrex import *
-from settings import *
-import numpy as np
-
-
-
-
 
 def GetFib(current, a, b, c, d, e,f):
     

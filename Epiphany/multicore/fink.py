@@ -1,9 +1,16 @@
+from bittrex.bittrex import *
 import argparse
-from pair import *
 import time
 import os
 import subprocess
 import psutil
+import MySQLdb
+import time
+import datetime
+import numpy as np
+from pair import *
+from settings import *
+from ta import *
 
 
 

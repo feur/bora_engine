@@ -1,12 +1,3 @@
-from bittrex.bittrex import *
-import os
-import MySQLdb
-import time
-import datetime
-from settings import *
-from ta import *
-import numpy as np
-#from epython import offload
 
 
 
