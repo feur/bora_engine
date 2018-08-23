@@ -731,9 +731,6 @@ class MyPair(object):
              
         
         
-            
-            
-    @offload        
     def Optimise(self):
         
         self.SMA *= 0
@@ -747,34 +744,7 @@ class MyPair(object):
         self.RollingFib *= 0
         
         
-        profit = 0
-        bestprofit = -100
-        buy = 0
-        sell = 0
-        hold = 0
-        buyPrice = 0
-        sellPrice = 0
-        #self.signals = []
         
-        
-        wins = 0
-        loss = 0
-        
-      
-        bestsignals = 1
-        bestwins = 0
-        bestloss= 0
-        initial = 0
-        
-
-        BuyOrder = []
-        BuyTime = []
-        SellOrder = []  
-        SellTime = []
-        BuySignals = []
-        SellSignals = []
-        BuySignalsTime = []
-        SellSignalsTime = []
         
         self.BuyOrder = []
         self.BuyTime = []
@@ -818,32 +788,91 @@ class MyPair(object):
                     
                     Floor = float(Floor - 0.001)
                 
-                    profit = 0
-                    wins = 0
-                    loss = 0
-                    r = 0
-                    bought = 0
-                    
-                    BuyOrder *= 0
-                    BuyTime *= 0
-                    SellOrder *= 0 #reset it
-                    SellTime *= 0
-                    initial = 0
-                    BuySignals *= 0
-                    SellSignals *= 0
-                    BuySignalsTime *= 0
-                    SellSignalsTime *= 0
-                
-                    hold = 0 
-                    order = 0
-                    state = 0
-                    
                     print("Ichimoku Period at: %d Return Limit at: %.9f Roof at: %.9f") %(IchtPeriod, rl,Floor)
                 
-                    fee = 0.0055 ##0.55% fee
+                    self.BackTest(Floor, rl, IchtPeriod)
+                           
+
+        hold = float((float(self.close[-1]) / float(self.close[len(self.close)-1-self.lp]) - 1.005) * 100)
+        OptimizeFinishTime = datetime.datetime.now()
+        
+        tdiff = OptimizeFinishTime - OptimizeStartTime 
+        self.optimizeTime = int(round(tdiff.total_seconds() / 60))
+        print("")
+        print("")
+        print("______________DONE___________________")
+        print("")
+        print("%d minutes for Optimizing") % (self.optimizeTime)
+        print("")
+        
+        print("______________!!!!!!___________________ ")
+        print("")
+        print("Total Best return = %.9f " % (self.bestprofit))
+        print("If HOLD = %.9f ") % hold
+        print("")
+        print("Amount of wins: %d") % (self.bestwins)
+        print("Amount of Lossess: %d") % (self.bestloss)
+        
+        print("")
+        print("______________PARAMS___________________ ")
+        print("")
+        print("Return Limit:  %.9f") % self.rl
+        print("FLOOR: %.9f") % self.BestFloor
+        print("Ichimoku Period: %d") % self.IchPeriod
+        print("")
+        
+        
+        if (self.bestprofit > 0):
+            self.ready = 1
+            print("READY TO TRADE NOW")
+        else:
+            self.ready = 0
+            
+            
+    @offload
+    def BackTest(self, Floor, rl, IchtPeriod):
+        
+        fee = 0.0055 ##0.55% fee
+        
+        profit = 0
+        wins = 0
+        loss = 0
+        r = 0
+        bought = 0
+                    
+        initial = 0
+        wins = 0
+        loss = 0
                 
-    
-                    for i in range (len(self.close)-1-self.lp,len(self.close)-2):
+        hold = 0 
+        order = 0
+        state = 0
+        
+        profit = 0
+       
+        buy = 0
+        sell = 0
+        hold = 0
+        buyPrice = 0
+        sellPrice = 0
+        
+        bestsignals = 1
+        self.bestprofit = -100
+        self.bestwins = 0
+        self.bestloss= 0
+        
+
+        BuyOrder = []
+        BuyTime = []
+        SellOrder = []  
+        SellTime = []
+        BuySignals = []
+        SellSignals = []
+        BuySignalsTime = []
+        SellSignalsTime = []
+        
+        
+        for i in range (len(self.close)-1-self.lp,len(self.close)-2):
                         
                         if (self.SMAIchD[i] <= Floor):
                             state = 1
@@ -903,38 +932,36 @@ class MyPair(object):
                         
                             SellOrder.append(sell)
                             SellTime.append(self.time[i]) 
-                                
-                                
-                                
-                    if (hold == 1): ##take care of unifnihsed business
-                        sell = self.close[i]
-                        SellOrder.append(sell)
-                        SellTime.append(self.time[i])                                    
-                                    
-                        r = float(float(float(sell)/float(buy) - 1.005)*100)
-                        
-                        if (r < 0):
-                            loss += 1
-                        elif (r > 0):
-                            wins += 1
                             
-                        profit = float(profit)+float(r)
+                            
+        if (hold == 1): ##take care of unifnihsed business
+            sell = self.close[i]
+            SellOrder.append(sell)
+            SellTime.append(self.time[i])                                    
+                                    
+            r = float(float(float(sell)/float(buy) - 1.005)*100)
+                        
+            if (r < 0):
+                loss += 1
+            elif (r > 0):
+                wins += 1
+                            
+            profit = float(profit)+float(r)
                                 
                                 
-                    print("profit %.9f") % profit       
-                    if (self.agLvl == 0 and profit > bestprofit and profit > 0 and loss == 0 ) or (self.agLvl == 1 and profit > bestprofit and profit > 0 and bought > bestsignals and loss == 0) or (self.agLvl == 2 and profit > 0 and bought > bestsignals and loss == 0):       
+        print("profit %.9f") % profit       
+        if (self.agLvl == 0 and profit > self.bestprofit and profit > 0 and loss == 0 ) or (self.agLvl == 1 and profit > self.bestprofit and profit > 0 and bought > bestsignals and loss == 0) or (self.agLvl == 2 and profit > 0 and bought > bestsignals and loss == 0):       
                 
-                        bestprofit = profit
-                        bestwins = wins
-                        bestloss= loss
+                        self.bestprofit = profit
+                        self.bestwins = wins
+                        self.bestloss= loss
                     
                    
                         bestsignals = bought
                         print("")
-                        print("Best profit at %.9f" ) % bestprofit
-                        print("Amount of Signals: %d") % (bestsignals)
-                        print("Amount of wins: %d") % (bestwins)
-                        print("Amount of Lossess: %d") % (bestloss)
+                        print("Best profit at %.9f" ) % self.bestprofit
+                        print("Amount of wins: %d") % (self.bestwins)
+                        print("Amount of Lossess: %d") % (self.bestloss)
                         print("")
                     
                         self.BuyOrder *= 0
@@ -955,45 +982,8 @@ class MyPair(object):
                         self.rl = rl
                         self.BestFloor = Floor
                         self.IchPeriod = IchtPeriod
-                           
-                          
-                            
-         
-
-        hold = float((float(self.close[-1]) / float(self.close[len(self.close)-1-self.lp]) - 1.005) * 100)
-        OptimizeFinishTime = datetime.datetime.now()
-        
-        tdiff = OptimizeFinishTime - OptimizeStartTime 
-        self.optimizeTime = int(round(tdiff.total_seconds() / 60))
-        print("")
-        print("")
-        print("______________DONE___________________")
-        print("")
-        print("%d minutes for Optimizing") % (self.optimizeTime)
-        print("")
-        
-        print("______________!!!!!!___________________ ")
-        print("")
-        print("Total Best return = %.9f " % (bestprofit))
-        print("If HOLD = %.9f ") % hold
-        print("")
-        print("Amount of wins: %d") % (bestwins)
-        print("Amount of Lossess: %d") % (bestloss)
-        
-        print("")
-        print("______________PARAMS___________________ ")
-        print("")
-        print("Return Limit:  %.9f") % self.rl
-        print("FLOOR: %.9f") % self.BestFloor
-        print("Ichimoku Period: %d") % self.IchPeriod
-        print("")
-        
-        
-        if (bestprofit > 0):
-            self.ready = 1
-            print("READY TO TRADE NOW")
-        else:
-            self.ready = 0
+    
+    
     
     
     def PlotData(self):
