@@ -11,7 +11,7 @@ import numpy as np
 #from pair import *
 from settings import *
 #from ta import *
-from epython import offload
+#from epython import offload
 
 
 
@@ -82,11 +82,8 @@ def GetEntry():
     return action
 
 
-@offload
-def BackTest(close, low, high, CRMI, Floor, rl, IchtPeriod, lp, sl):
-    
-    import math
-    import decimal
+#@offload
+def BackTest(close, low, high, CRMI, params):
     
     result = [0,0,0,0] #Profit, Wins, Lossess
     
@@ -102,7 +99,20 @@ def BackTest(close, low, high, CRMI, Floor, rl, IchtPeriod, lp, sl):
     fee = 0.0055 
     buyPrice = 0
     sellPrice = 0
-    i = len(close)-2-lp
+    i = 0
+    
+    bought = 0
+    buy = 0 
+    sell = 0
+    
+    
+    rl = params[0]
+    sl = params[1]
+    Floor = params[2]
+    
+   # print(rl)
+    
+    #print(close)
     
     while i < len(close)-2:
     
@@ -118,6 +128,7 @@ def BackTest(close, low, high, CRMI, Floor, rl, IchtPeriod, lp, sl):
             buyPrice = close[i]
             bought += 1   
             order = 1
+            
                         
                             
         elif (hold == 1 and (order == 0 or order == 2)):
@@ -135,6 +146,11 @@ def BackTest(close, low, high, CRMI, Floor, rl, IchtPeriod, lp, sl):
                 sellPrice = close[i] 
             else:
                 sellPrice = absolutemin
+                
+            #print("minimum: %.9f, maximum: %.9f, absolutemin: %.9f, close: %.9f") % (minimum, maximum, absolutemin, close[i])
+                
+            
+            
                 
             order = 2
                                          
@@ -156,8 +172,9 @@ def BackTest(close, low, high, CRMI, Floor, rl, IchtPeriod, lp, sl):
                 loss += 1
             elif (r > 0):
                 wins += 1
-                            
+            
             profit = float(profit)+float(r)
+           
                         
                             
                             
@@ -173,6 +190,8 @@ def BackTest(close, low, high, CRMI, Floor, rl, IchtPeriod, lp, sl):
                             
         profit = float(profit)+float(r)
         
+        
+    print("profit %.9f") % profit
     result[0] = profit
     result[1] = wins
     result[2] = loss   
@@ -220,12 +239,10 @@ class MyPair(object):
         
         """ TA """
         self.SMA = []
-        self.SMAIchD  = []
-        self.SMAIchDSMA = []
+        self.CRMI  = []
         
         self.tenkanSen = []
         self.kijunSen = []
-        self.IchD = []
         self.senkouB = []
         self.senkouA = []
         
@@ -612,12 +629,10 @@ class MyPair(object):
         
     def GetIchT(self,kPeriod):
         
-   
-        self.tenkanSen = []
-        self.kijunSen = []
-        self.IchD = []
-        self.senkouB = []
-        self.senkouA = []
+        self.tenkanSen *= 0
+        self.kijunSen *= 0
+        self.senkouB *= 0
+        self.senkouA *= 0
         
         tPeriod = 9
         #kPeriod = 800
@@ -663,27 +678,15 @@ class MyPair(object):
             high = 0
             low = 1
             
-            
-        ## now get the differences    
-        for z in range (0,len(self.kijunSen)):
-            if (self.tenkanSen[z] == 0 or self.kijunSen[0] == 0):
-                self.IchD.append(0)
-            else:
-                self.IchD.append(float(self.tenkanSen[z] / self.kijunSen[z]))
-                
-                
 
     
             
     def GetSMA(self):
-        
-        
-        self.SMA = []
-        self.SMAIchD  = []
-        self.SMAIchDSMA = []
+
         SMAPeriod = 4
-        SMAPeriodD = 10
         w = 0
+        
+        self.SMA *= 0
         
         ##SMA 4 periods of close
         
@@ -700,31 +703,25 @@ class MyPair(object):
             self.SMA.append(float(w/SMAPeriod))
             w = 0
             
-        #print(len(self.SMAIchD))
             
+        
+            
+    def GetCRMI(self):
+        
+        self.CRMI  *= 0
+        
+       # print(len(self.SMA))
+       
+        #print(len(self.SMA))
+        #print(len(self.kijunSen))
+        
          ## now get the differences    
         for z in range (0,len(self.kijunSen)):
             if (self.SMA[z] == 0 or self.kijunSen[0] == 0):
-                self.SMA.append(0)
+                self.CRMI.append(0)
             else:
-                self.SMAIchD.append(float(self.SMA[z]/self.kijunSen[z]))
-                
-        ##get a SMA of SAMICHD
-            
-         ##SMA 4 periods of close
+                self.CRMI.append(float(self.SMA[z]/self.kijunSen[z]))
         
-        ##first fill in the 0s
-        for z in range (0, SMAPeriodD):
-            self.SMAIchDSMA.append(self.SMAIchD[z])
-        
-        for x in range (SMAPeriodD-1, len(self.SMAIchD)):
-            
-            ## find the highest & lowest for 9 periods
-            for y in range (x - (SMAPeriodD), x):
-                w = float(w+self.SMAIchD[y])
-                
-            self.SMAIchDSMA.append(float(w/SMAPeriodD))
-            w = 0
             
         
         
@@ -759,12 +756,10 @@ class MyPair(object):
         absolutemin = float(self.initial * (1+fee))      ##absolute minimum is to cover the fee
         minimum = float(self.close[-1] * (self.rl + fee))    ##minium is just slighlty above the fee
         maximum = float(self.initial * self.rl)          ## maximum return limit
-        
-        
+                
         self.position = float(self.close[-1] / self.initial)
         print("position at: %.9f") % (self.position)
-        
-        
+                
         if (self.position < 1 and minimum > absolutemin):
             self.SellPrice = minimum
         elif (self.position >= 1): ##current closing price at initial or above
@@ -778,8 +773,7 @@ class MyPair(object):
 
             
     def MaintainOrder(self):
-        
-        
+                
         self.GetOrderPrice()
         
         if (self.state == 1 and self.hold == 0 and self.order == 2):##we're not holding something and we got a buy signal, make a buy order
@@ -824,7 +818,6 @@ class MyPair(object):
                     self.conn.rollback()
                     self.conn.close()
           
-    
         
         if (self.Order == 1): ## we have a sell order
         
@@ -856,7 +849,9 @@ class MyPair(object):
         
         """ Just Reset Everything """
         
+        self.SMA *= 0
         self.GetBalance()
+        self.GetSMA()
             
         print("Balance: %.9f" % (self.balance))
         print("**************************************")
@@ -869,8 +864,8 @@ class MyPair(object):
         
         if (self.ready == 1 and self.rl != 0 ):
             
-            self.GetIchT(self.IchPeriod)
-            self.GetSMA()
+            self.GetIchT(self.IchtPeriod)
+            self.GetCRMI()
         
             print("Last data time: %s") % self.time[-1]
             print("close is: %.9f" % self.close[-1])  
@@ -880,10 +875,10 @@ class MyPair(object):
             print(" ")
             
             print("******* TA *******")
-            print("Momentum: %.9f, Floor: %.9f") % (self.SMAIchDSMA[-1], self.BestFloor)
+            print("Momentum: %.9f, Floor: %.9f") % (self.CRMI[-1], self.BestFloor)
             print("")
             
-            if (self.SMAIchD[-1] <= self.BestFloor):
+            if (self.CRMI[-1] <= self.BestFloor):
                 self.state = 1 ##buy
             #elif self.initial != 0 and (self.SMAIchD[-1] >= self.BestRoof or float(self.close[-1])/float(self.initial) > self.rl or float(self.close[-1])/float(self.initial) <= self.sl):
             #    self.state = 2 ##sell
@@ -902,21 +897,15 @@ class MyPair(object):
         
     def Optimise(self):
         
-        self.SMA *= 0
-        self.SMAIchD  *= 0
-        self.SMAIchDSMA *= 0
-        self.tenkanSen *= 0
-        self.kijunSen *= 0
-        self.IchD *= 0
-        self.senkouB *= 0
-        self.senkouA *= 0
-        
         self.rl = 0
         #Roof = max(self.SMAIchD)
     
-        IchtPeriod = 40
+        IchtPeriod = 44
         bestsignals = 1
         self.bestprofit = -100
+        self.bestwins = 0
+        self.bestloss = 0
+        self.IchtPeriod = 0
         result = []
         
         print(" ")
@@ -924,36 +913,55 @@ class MyPair(object):
         print("")
         
         OptimizeStartTime = datetime.datetime.now() 
+           
+        ##Limit the data       
+        close = []
+        high = []
+        low = []
+        
+        for i in range (len(self.close)-self.lp-2, len(self.close)-2):
+            close.append(self.close[i])
+            high.append(self.high[i])
+            low.append(self.low[i])
         
         while (IchtPeriod > 4):
             
+            ## Get CRMI based on the IchTPeriod
             self.GetIchT(IchtPeriod)
-            self.GetSMA()
+            self.GetCRMI()
             
-            rl = 1.1
+            #limit the CRMI
+            crmi = []
+            for i in range (len(self.CRMI)-self.lp-2, len(self.CRMI)-2): ##same window as prices
+                crmi.append(self.CRMI[i])
+                
+            rl = 1.102
 
             IchtPeriod = IchtPeriod - 4 
         
             while (rl > 1.008):
                 
                 rl = float(rl - 0.002)
-                Floor = max(self.SMAIchD)
+                Floor = max(crmi)
                 
-                while (Floor >= min(self.SMAIchD)):
+                while (Floor >= min(crmi)):
                        
                     print("Ichimoku Period at: %d Return Limit at: %.9f Floor at: %.9f") %(IchtPeriod, rl,Floor)
+                    
                     
                     result *= 0
                     ##Get 16 different results
                     for i in range (0,15):
-                       result.append(BackTest(self.close, self.low, self.high, self.SMAIchD, Floor, rl, IchtPeriod, self.lp, self.sl, target=[i+1], async=True))
+                        params = [rl, self.sl, Floor]
+                        result.append(BackTest(close,high,low,crmi,params))
+                       #result.append(BackTest(self.close, self.low, self.high, self.SMAIchD, Floor, rl, IchtPeriod, self.lp, self.sl, target=[i+1], async=True))
                        #result.append(BackTest(self.close, self.low, self.high, self.SMAIchD, Floor, rl, IchtPeriod, self.lp, self.sl))
-                       Floor = float(Floor - 0.001)
+                        Floor = float(Floor - 0.001)
                        
-                    result[15].wait()
+                    #result[15].wait()
                        
                     for i in range (0,15):      
-                        print("profit %.9f") % result[i][0]    
+                        #print("profit %.9f") % result[i][0]    
                         if (self.agLvl == 0 and result[i][0] > self.bestprofit and result[i][0] > 0 and result[i][2] == 0 ) or (self.agLvl == 1 and result[i][0] > self.bestprofit and result[i][0] > 0 and (result[i][1] + result[i][2]) > bestsignals and result[i][2] == 0) or (self.agLvl == 2 and result[i][0] > 0 and (result[i][1] + result[i][2]) > bestsignals and result[i][2] == 0):       
                 
                             self.bestprofit = result[i][0]
@@ -971,7 +979,7 @@ class MyPair(object):
 
                             self.rl = rl
                             self.BestFloor = result[i][3]
-                            self.IchPeriod = IchtPeriod
+                            self.IchtPeriod = IchtPeriod
                            
                         
                         
@@ -1001,7 +1009,7 @@ class MyPair(object):
         print("")
         print("Return Limit:  %.9f") % self.rl
         print("FLOOR: %.9f") % self.BestFloor
-        print("Ichimoku Period: %d") % self.IchPeriod
+        print("Ichimoku Period: %d") % self.IchtPeriod
         print("")
         
         
