@@ -11,7 +11,7 @@ import numpy as np
 #from pair import *
 from settings import *
 #from ta import *
-#from epython import offload
+from epython import offload
 
 
 
@@ -82,7 +82,7 @@ def GetEntry():
     return action
 
 
-#@offload
+@offload
 def BackTest(close, low, high, CRMI, params):
     
     result = [0,0,0,0] #Profit, Wins, Lossess
@@ -132,11 +132,11 @@ def BackTest(close, low, high, CRMI, params):
                         
                             
         elif (hold == 1 and (order == 0 or order == 2)):
-            absolutemin = float(initial * (1+fee))      
-            minimum = float(close[i] * (rl + fee))   
-            maximum = float(initial * rl)         
+            absolutemin = initial * (1+fee)   
+            minimum = close[i] * (rl + fee)
+            maximum = initial * rl
 
-            position = float((close[i]) / initial)
+            position = close[i] / initial
                         
             if (position < 1 and minimum > absolutemin):
                 sellPrice = minimum
@@ -148,10 +148,7 @@ def BackTest(close, low, high, CRMI, params):
                 sellPrice = absolutemin
                 
             #print("minimum: %.9f, maximum: %.9f, absolutemin: %.9f, close: %.9f") % (minimum, maximum, absolutemin, close[i])
-                
-            
-            
-                
+
             order = 2
                                          
          
@@ -166,14 +163,14 @@ def BackTest(close, low, high, CRMI, params):
             sell = sellPrice
             hold = 0 
             order = 0
-            r = float(float(float(sell)/float(buy) - 1.005)*100)
+            r = ((sell/buy) - 1.005)*100
                         
             if (r < 0):
                 loss += 1
             elif (r > 0):
                 wins += 1
             
-            profit = float(profit)+float(r)
+            profit = profit+r
            
                         
                             
@@ -181,14 +178,14 @@ def BackTest(close, low, high, CRMI, params):
     if (hold == 1): 
         sell = close[i]                           
                                     
-        r = float(float(float(sell)/float(buy) - 1.005)*100)
+        r = ((sell/buy) - 1.005)*100
         
         if (r < 0):
             loss += 1
         elif (r > 0):
             wins += 1
                             
-        profit = float(profit)+float(r)
+        profit = profit+r
         
         
     print("profit %.9f") % profit
