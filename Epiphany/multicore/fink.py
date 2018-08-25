@@ -110,10 +110,6 @@ def BackTest(close, low, high, CRMI, params):
     sl = params[1]
     Floor = params[2]
     
-   # print(rl)
-    
-    #print(close)
-    
     while i < len(close)-2:
     
         i += 1
@@ -147,8 +143,6 @@ def BackTest(close, low, high, CRMI, params):
             else:
                 sellPrice = absolutemin
                 
-            #print("minimum: %.9f, maximum: %.9f, absolutemin: %.9f, close: %.9f") % (minimum, maximum, absolutemin, close[i])
-
             order = 2
                                          
          
@@ -171,9 +165,6 @@ def BackTest(close, low, high, CRMI, params):
                 wins += 1
             
             profit = profit+r
-           
-                        
-                            
                             
     if (hold == 1): 
         sell = close[i]                           
@@ -188,7 +179,7 @@ def BackTest(close, low, high, CRMI, params):
         profit = profit+r
         
         
-    print("profit %.9f") % profit
+    #print("profit %.9f") % profit
     result[0] = profit
     result[1] = wins
     result[2] = loss   
@@ -707,11 +698,7 @@ class MyPair(object):
         
         self.CRMI  *= 0
         
-       # print(len(self.SMA))
-       
-        #print(len(self.SMA))
-        #print(len(self.kijunSen))
-        
+  
          ## now get the differences    
         for z in range (0,len(self.kijunSen)):
             if (self.SMA[z] == 0 or self.kijunSen[0] == 0):
@@ -948,25 +935,24 @@ class MyPair(object):
                     
                     result *= 0
                     ##Get 16 different results
-                    for i in range (0,15):
+                    for i in range (0,16):
                         params = [rl, self.sl, Floor]
-                        result.append(BackTest(close,high,low,crmi,params))
-                       #result.append(BackTest(self.close, self.low, self.high, self.SMAIchD, Floor, rl, IchtPeriod, self.lp, self.sl, target=[i+1], async=True))
-                       #result.append(BackTest(self.close, self.low, self.high, self.SMAIchD, Floor, rl, IchtPeriod, self.lp, self.sl))
-                        Floor = float(Floor - 0.001)
+                        result.append(BackTest(close,high,low,crmi,params,target=[i+1], async=True)) ##process all 16 scenarios on 16 cores
+                        Floor = float(Floor - 0.01)
+                        
+                    for i in range (0,16):
+                        print("profit %.9f") % result[i][0][0].wait   
                        
-                    #result[15].wait()
-                       
-                    for i in range (0,15):      
-                        #print("profit %.9f") % result[i][0]    
-                        if (self.agLvl == 0 and result[i][0] > self.bestprofit and result[i][0] > 0 and result[i][2] == 0 ) or (self.agLvl == 1 and result[i][0] > self.bestprofit and result[i][0] > 0 and (result[i][1] + result[i][2]) > bestsignals and result[i][2] == 0) or (self.agLvl == 2 and result[i][0] > 0 and (result[i][1] + result[i][2]) > bestsignals and result[i][2] == 0):       
+ 
+                    for i in range (0,16):      
+                        if (self.agLvl == 0 and result[i][0][0] > self.bestprofit and result[i][0][0] > 0 and result[i][0][2] == 0 ) or (self.agLvl == 1 and result[i][0][0] > self.bestprofit and result[i][0][0] > 0 and (result[i][0][1] + result[i][0][2]) > bestsignals and result[i][0][2] == 0) or (self.agLvl == 2 and result[i][0][0] > 0 and (result[i][0][1] + result[i][0][2]) > bestsignals and result[i][0][2] == 0):       
                 
-                            self.bestprofit = result[i][0]
-                            self.bestwins = result[i][1]
-                            self.bestloss= result[i][2]
+                            self.bestprofit = result[i][0][0]
+                            self.bestwins = result[i][0][1]
+                            self.bestloss= result[i][0][2]
                     
                    
-                            bestsignals = result[i][1] + result[i][0]
+                            bestsignals = result[i][1] + result[i][0][0]
                             print("")
                             print("Best profit at %.9f" ) % self.bestprofit
                             print("Amount of wins: %d") % (self.bestwins)
@@ -975,7 +961,7 @@ class MyPair(object):
                     
 
                             self.rl = rl
-                            self.BestFloor = result[i][3]
+                            self.BestFloor = result[i][0][3]
                             self.IchtPeriod = IchtPeriod
                            
                         
