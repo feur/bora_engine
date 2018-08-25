@@ -84,106 +84,32 @@ def GetEntry():
 
 @offload
 def BackTest(close, low, high, CRMI, params):
-    
-    result = [0,0,0,0] #Profit, Wins, Lossess
-    
-    state = 0
-    order = 0
-    hold = 0
-    initial = 0
+    result = [0,0,params[1]]
     bought = 0
-    loss = 0
-    wins = 0
-    profit = 0
-    
-    fee = 0.0055 
-    buyPrice = 0
-    sellPrice = 0
     i = 0
-    
-    bought = 0
-    buy = 0 
-    sell = 0
-    
-    
-    rl = params[0]
-    sl = params[1]
-    Floor = params[2]
-    
-    while i < len(close)-2:
-    
-        i += 1
-        
-        if (CRMI[i] <= Floor):
-            state = 1
-        else: 
-            state = 0
-            order = 0
-                            
-        if (hold == 0 and state == 1 and (order == 0 or order == 1)):
-            buyPrice = close[i]
-            bought += 1   
-            order = 1
-            
-                        
-                            
-        elif (hold == 1 and (order == 0 or order == 2)):
-            absolutemin = initial * (1+fee)   
-            minimum = close[i] * (rl + fee)
-            maximum = initial * rl
-
-            position = close[i] / initial
-                        
-            if (position < 1 and minimum > absolutemin):
-                sellPrice = minimum
-            elif (position >= 1): 
-                sellPrice = maximum
-            elif position <= sl: 
-                sellPrice = close[i] 
-            else:
-                sellPrice = absolutemin
-                
-            order = 2
-                                         
-         
-        if order == 1 and buyPrice >= low[i+1]:  
-            buy = buyPrice
-            hold = 1    
-            order = 0
-            initial = buy 
-                    
-                        
-        if order == 2 and sellPrice <= high[i+1]:
-            sell = sellPrice
-            hold = 0 
-            order = 0
-            r = ((sell/buy) - 1.005)*100
-                        
-            if (r < 0):
-                loss += 1
-            elif (r > 0):
-                wins += 1
-            
-            profit = profit+r
-                            
-    if (hold == 1): 
-        sell = close[i]                           
-                                    
-        r = ((sell/buy) - 1.005)*100
-        
-        if (r < 0):
-            loss += 1
-        elif (r > 0):
-            wins += 1
-                            
-        profit = profit+r
-        
-        
-    #print("profit %.9f") % profit
-    result[0] = profit
-    result[1] = wins
-    result[2] = loss   
-    result[3] = Floor
+    x = 0
+    while i<len(close)-2:    
+        if CRMI[i]<=params[1]:
+            initial=close[i]
+            x=i
+            while x<len(close)-2:
+                if initial>=low[x+1]:
+                    bought+=1
+                    i=x
+                    x=len(close)-2
+                x+=1
+            x=i
+            while x<len(close)-2:
+                if initial*params[0]<=high[x+1]:
+                    i=x
+                    x=len(close)-2
+                    r=params[0]-1.005
+                    result[0]+=r
+                    if r<0:
+                        result[1]+=1
+                x+=1
+        i+=1    
+    print(result[0])
     return result 
 
 
@@ -936,32 +862,27 @@ class MyPair(object):
                     result *= 0
                     ##Get 16 different results
                     for i in range (0,16):
-                        params = [rl, self.sl, Floor]
-                        result.append(BackTest(close,high,low,crmi,params,target=[i+1], async=True)) ##process all 16 scenarios on 16 cores
+                        params = [rl, Floor]
+                        result.append(BackTest(close,high,low,crmi,params,target=[i], async=True)) ##process all 16 scenarios on 16 cores
+                        #result.append(BackTest(close,high,low,crmi,params))
                         Floor = float(Floor - 0.01)
                         
                     for i in range (0,16):
-                        print("profit %.9f") % result[i][0][0].wait   
+                        result[i].wait
                        
  
                     for i in range (0,16):      
-                        if (self.agLvl == 0 and result[i][0][0] > self.bestprofit and result[i][0][0] > 0 and result[i][0][2] == 0 ) or (self.agLvl == 1 and result[i][0][0] > self.bestprofit and result[i][0][0] > 0 and (result[i][0][1] + result[i][0][2]) > bestsignals and result[i][0][2] == 0) or (self.agLvl == 2 and result[i][0][0] > 0 and (result[i][0][1] + result[i][0][2]) > bestsignals and result[i][0][2] == 0):       
+                        print("profit %.9f") % result[i][0] 
+                        if (result[i][0] > self.bestprofit and result[i][0] > 0 and result[i][1] == 0 ):       
                 
-                            self.bestprofit = result[i][0][0]
-                            self.bestwins = result[i][0][1]
-                            self.bestloss= result[i][0][2]
-                    
-                   
-                            bestsignals = result[i][1] + result[i][0][0]
+                            self.bestprofit = result[i][0]
                             print("")
-                            print("Best profit at %.9f" ) % self.bestprofit
-                            print("Amount of wins: %d") % (self.bestwins)
-                            print("Amount of Lossess: %d") % (self.bestloss)
+                            print("Best profit at %.9f" ) % (self.bestprofit * 100)
                             print("")
                     
 
                             self.rl = rl
-                            self.BestFloor = result[i][0][3]
+                            self.BestFloor = result[i][2]
                             self.IchtPeriod = IchtPeriod
                            
                         
@@ -971,21 +892,19 @@ class MyPair(object):
         OptimizeFinishTime = datetime.datetime.now()
         
         tdiff = OptimizeFinishTime - OptimizeStartTime 
-        self.optimizeTime = int(round(tdiff.total_seconds() / 60))
+        self.optimizeTime = int(round(tdiff.total_seconds()))
         print("")
         print("")
         print("______________DONE___________________")
         print("")
-        print("%d minutes for Optimizing") % (self.optimizeTime)
+        print("%d seconds for Optimizing") % (self.optimizeTime)
         print("")
         
         print("______________!!!!!!___________________ ")
         print("")
-        print("Total Best return = %.9f " % (self.bestprofit))
+        print("Total Best return = %.9f " % (self.bestprofit * 100))
         print("If HOLD = %.9f ") % hold
         print("")
-        print("Amount of wins: %d") % (self.bestwins)
-        print("Amount of Lossess: %d") % (self.bestloss)
         
         print("")
         print("______________PARAMS___________________ ")
