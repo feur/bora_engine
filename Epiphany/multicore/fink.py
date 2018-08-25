@@ -109,7 +109,6 @@ def BackTest(close, low, high, CRMI, params):
                         result[1]+=1
                 x+=1
         i+=1    
-    print(result[0])
     return result 
 
 
@@ -817,6 +816,7 @@ class MyPair(object):
         self.bestloss = 0
         self.IchtPeriod = 0
         result = []
+        coreresult = []
         
         print(" ")
         print("...Optimizing Params, Figuring out what's the best for us....")
@@ -860,29 +860,30 @@ class MyPair(object):
                     
                     
                     result *= 0
+                    coreresult *= 0
                     ##Get 16 different results
                     for i in range (0,16):
                         params = [rl, Floor]
-                        result.append(BackTest(close,high,low,crmi,params,target=[i], async=True)) ##process all 16 scenarios on 16 cores
+                        coreresult.append(BackTest(close,high,low,crmi,params,target=[i], async=True)) ##process all 16 scenarios on 16 cores
                         #result.append(BackTest(close,high,low,crmi,params))
                         Floor = float(Floor - 0.01)
                         
                     for i in range (0,16):
-                        result[i].wait
+                        result.append(coreresult[i].wait())
                        
  
                     for i in range (0,16):      
-                        print("profit %.9f") % result[i][0] 
-                        if (result[i][0] > self.bestprofit and result[i][0] > 0 and result[i][1] == 0 ):       
+                        print("profit %.9f") % result[i][0][0] 
+                        if (result[i][0] > self.bestprofit and result[i][0] > 0 and result[i][0][1] == 0 ):       
                 
-                            self.bestprofit = result[i][0]
+                            self.bestprofit = result[i][0][0]
                             print("")
                             print("Best profit at %.9f" ) % (self.bestprofit * 100)
                             print("")
                     
 
                             self.rl = rl
-                            self.BestFloor = result[i][2]
+                            self.BestFloor = result[i][0][2]
                             self.IchtPeriod = IchtPeriod
                            
                         
