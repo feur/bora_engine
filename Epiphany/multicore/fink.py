@@ -836,6 +836,9 @@ class MyPair(object):
         
         while (IchtPeriod > 4):
             
+            
+            IchtPeriod = IchtPeriod - 4
+            
             ## Get CRMI based on the IchTPeriod
             self.GetIchT(IchtPeriod)
             self.GetCRMI()
@@ -847,7 +850,6 @@ class MyPair(object):
                 
             rl = 1.102
 
-            IchtPeriod = IchtPeriod - 4 
         
             while (rl > 1.008):
                 
@@ -864,9 +866,9 @@ class MyPair(object):
                     ##Get 16 different results
                     for i in range (0,16):
                         params = [rl, Floor]
+                        Floor = float(Floor - 0.01)
                         coreresult.append(BackTest(close,high,low,crmi,params,target=[i], async=True)) ##process all 16 scenarios on 16 cores
                         #result.append(BackTest(close,high,low,crmi,params))
-                        Floor = float(Floor - 0.01)
                         
                     for i in range (0,16):
                         result.append(coreresult[i].wait())
@@ -874,7 +876,7 @@ class MyPair(object):
  
                     for i in range (0,16):      
                         print("profit %.9f") % result[i][0][0] 
-                        if (result[i][0] > self.bestprofit and result[i][0] > 0 and result[i][0][1] == 0 ):       
+                        if (result[i][0][0] > self.bestprofit and result[i][0][0] > 0 and result[i][0][1] == 0 ):       
                 
                             self.bestprofit = result[i][0][0]
                             print("")
