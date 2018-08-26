@@ -2,15 +2,10 @@ from bittrex.bittrex import *
 import argparse
 import time
 import os
-import subprocess
-import psutil
 import MySQLdb
-import time
 import datetime
 import numpy as np
-#from pair import *
 from settings import *
-#from ta import *
 
 
 
@@ -48,18 +43,10 @@ def GetEntry():
                         action='store',  # tell to store a value
                         dest='time',  # use `paor` to access value
                         help='Time Interval')
-    parser.add_argument('-a', '--aggression',
-                        action='store', # tell to store a value
-                        dest='agLvl',  # use `paor` to access value
-                        help='your level of aggression ')
     parser.add_argument('-lp', '--lookback',
                         action='store', # tell to store a value
                         dest='lp',  # use `paor` to access value
                         help='lookback period ')
-    parser.add_argument('-sl', '--stoploss',
-                        action='store', # tell to store a value
-                        dest='sl',  # use `paor` to access value
-                        help='your stoplosss')
     
     parser.add_argument('-st', '--standalone',
                         action='store',  # tell to store a value
@@ -82,33 +69,7 @@ def GetEntry():
 
 
 
-def BackTest(close, low, high, CRMI, params):
-    result = [0,0,params[1]]
-    bought = 0
-    i = 0
-    x = 0
-    while i<len(close)-2:    
-        if CRMI[i]<=params[1]:
-            initial=close[i]
-            x=i
-            while x<len(close)-2:
-                if initial>=low[x+1]:
-                    bought+=1
-                    i=x
-                    x=len(close)-2
-                x+=1
-            x=i
-            while x<len(close)-2:
-                if initial*params[0]<=high[x+1]:
-                    i=x
-                    x=len(close)-2
-                    r=params[0]-1.005
-                    result[0]+=r
-                    if r<0:
-                        result[1]+=1
-                x+=1
-        i+=1    
-    return result 
+
 
 
 
@@ -233,14 +194,7 @@ class MyPair(object):
         else:
             self.BuyLimit = 0.02
             print("Buy limit set to default 0.02 BTC")
-            
-        if (entry.agLvl != None):
-            self.agLvl = float(entry.agLvl)
-            print("Aggresion Level set to level %d") % self.agLvl
-        else:
-            self.agLvl = 0
-            print("Aggresion Level set to level 0")
-
+        
             
         if (entry.lp != None):
             self.lp = int(entry.lp)
@@ -248,15 +202,7 @@ class MyPair(object):
         else:
             self.lp = int((24*14*60)/self.TimeIntervalINT)
             print("Looking back at default of 2 weeks, period: %d")%(self.lp)
-            
-            
-        if (entry.sl != None):
-            self.sl = float(entry.sl)
-            print("Stop limit at %.9f") % self.sl
-        else:
-            self.sl = 0.9
-            print("Stop limit at default 10%")
-            
+        
             
         if (int(entry.st) == 0): ##system not in standalone mode
             
@@ -779,7 +725,7 @@ class MyPair(object):
             print("close is: %.9f" % self.close[-1])  
             print("open is:  %.9f" % self.open[-1])  
             print("sma is:   %.9f" % self.SMA[-1]) 
-            print("lenght of data: %d") % len(self.close)
+            print("Length of data: %d") % len(self.close)
             print(" ")
             
             print("******* TA *******")
@@ -788,96 +734,98 @@ class MyPair(object):
             
             if (self.CRMI[-1] <= self.BestFloor):
                 self.state = 1 ##buy
-            #elif self.initial != 0 and (self.SMAIchD[-1] >= self.BestRoof or float(self.close[-1])/float(self.initial) > self.rl or float(self.close[-1])/float(self.initial) <= self.sl):
-            #    self.state = 2 ##sell
             else:
                 self.state = 0 ##to prevent buying or selling when we're not meant to sell
                 
             if (self.ex == 0):
                 self.MaintainOrder()
             else:
+                self.PlotData()
                 print("Experiment Done")
      
         else:
             print("NOT READY TO TRADE")
-             
+            
         
         
     def Optimise(self):
         
         self.rl = 0
-        #Roof = max(self.SMAIchD)
-    
-        IchtPeriod = 44
-        bestsignals = 1
-        self.bestprofit = -100
-        self.bestwins = 0
-        self.bestloss = 0
+        sl = 0.99
+        
+        IchtPeriod = 42
+        self.bestprofit = 0
         self.IchtPeriod = 0
-        result = []
         
         print(" ")
         print("...Optimizing Params, Figuring out what's the best for us....")
         print("")
         
         OptimizeStartTime = datetime.datetime.now() 
-           
-        ##Limit the data       
-        close = []
-        high = []
-        low = []
         
-        for i in range (len(self.close)-self.lp-2, len(self.close)-2):
-            close.append(self.close[i])
-            high.append(self.high[i])
-            low.append(self.low[i])
+        datalength = len(self.close)
+           
         
         while (IchtPeriod > 4):
+            IchtPeriod = IchtPeriod - 2 
             
             ## Get CRMI based on the IchTPeriod
             self.GetIchT(IchtPeriod)
             self.GetCRMI()
             
-            #limit the CRMI
-            crmi = []
-            for i in range (len(self.CRMI)-self.lp-2, len(self.CRMI)-2): ##same window as prices
-                crmi.append(self.CRMI[i])
-                
             rl = 1.102
 
-            IchtPeriod = IchtPeriod - 4 
-        
             while (rl > 1.008):
                 
                 rl = float(rl - 0.002)
-                Floor = max(crmi)
+                Floor = max(self.CRMI)
                 
-                while (Floor >= min(crmi)):
-                       
-                    print("Ichimoku Period at: %d Return Limit at: %.9f ||||||||||") %(IchtPeriod, rl)
+                while (Floor >= min(self.CRMI)):
+                   
+                    Floor = Floor - 0.01
+                    sl = 0.99
                     
+                    while (sl >= 0.9):
+                        sl = sl - 0.01
+                        
+                        profit = 0
+                        loss = 0
                     
-                    result *= 0
-                    ##Get 16 different results
-                    for i in range (0,16):
-                        params = [rl, Floor]
-                        #result.append(BackTest(close,high,low,crmi,params,target=[i], async=True)) ##process all 16 scenarios on 16 cores
-                        result.append(BackTest(close,high,low,crmi,params))
-                        Floor = float(Floor - 0.01)
-
-
-                    for i in range (0,16):      
-                        print("Floor: %.9f, profit %.9f") % (result[i][2],result[i][0]) 
-                        if (result[i][0] > self.bestprofit and result[i][0] > 0 and result[i][1] == 0 ):       
-                
-                            self.bestprofit = result[i][0]
+                        i = datalength-1-self.lp
+                    
+                        while i<datalength-2:    
+                            if self.CRMI[i]<=Floor:
+                                initial=self.close[i]
+                                while i<datalength-2:
+                                    if initial>=self.low[i+1]:
+                                        break
+                                    i+=1
+                                while i<datalength-2:
+                                    if initial*rl<=self.high[i+1]:
+                                        r=rl-1.005
+                                        break
+                                    elif self.close[i] <= initial * sl:
+                                        r=(self.close[i]/initial) - 1.005
+                                        break
+                                    else:
+                                        r=(self.close[i]/initial) - 1.005
+                                    i+=1
+                                if r<0:
+                                    loss+=1
+                                profit+=r      
+                            i+=1  
+                        
+                    
+                        if (profit > self.bestprofit and loss == 0 ):       
+                            self.bestprofit = profit
                             print("")
-                            print("Best profit at %.9f" ) % (self.bestprofit * 100)
+                            print("Ichimoku Period at: %d Return Limit at: %.9f Floor at: %.9f ||||||||||") %(IchtPeriod, rl, Floor)
+                            print("Best profit at %.9f with stoploss of: %.9f" ) % (self.bestprofit, sl)
                             print("")
-                    
-
+                        
+                            self.sl = sl
                             self.rl = rl
-                            self.BestFloor = result[i][2]
+                            self.BestFloor = Floor
                             self.IchtPeriod = IchtPeriod
                            
                         
@@ -887,15 +835,12 @@ class MyPair(object):
         OptimizeFinishTime = datetime.datetime.now()
         
         tdiff = OptimizeFinishTime - OptimizeStartTime 
-        self.optimizeTime = int(round(tdiff.total_seconds()))
+        self.optimizeTime = int(tdiff.total_seconds())
         print("")
         print("")
         print("______________DONE___________________")
         print("")
         print("%d seconds for Optimizing") % (self.optimizeTime)
-        print("")
-        
-        print("______________!!!!!!___________________ ")
         print("")
         print("Total Best return = %.9f " % (self.bestprofit * 100))
         print("If HOLD = %.9f ") % hold
@@ -904,6 +849,7 @@ class MyPair(object):
         print("")
         print("______________PARAMS___________________ ")
         print("")
+        print("Stop Loss:  %.9f") % self.sl
         print("Return Limit:  %.9f") % self.rl
         print("FLOOR: %.9f") % self.BestFloor
         print("Ichimoku Period: %d") % self.IchtPeriod
@@ -912,7 +858,8 @@ class MyPair(object):
         
         if (self.bestprofit > 0):
             self.ready = 1
-            print("READY TO TRADE NOW")
+            print("____READY TO TRADE NOW_____________")
+            print("")
         else:
             self.ready = 0
             
@@ -933,8 +880,8 @@ class MyPair(object):
             print(error)
             self.conn.rollback()
             self.conn.close()
-        
-        
+            
+
                         
     def Trade(self):
         
@@ -950,14 +897,10 @@ class MyPair(object):
             print("sorry your agent system is not activated, please activate it !")
             quit()
             
-         
-        
         self.GetSignal()              ##get Signal
         if (self.st == 0):
             self.UploadData()
         
-      
-     
         print("____________________________________")
         print(" ")
          
