@@ -84,22 +84,26 @@ def GetEntry():
 
 @offload
 def BackTest(close, low, high, CRMI, params):
-    result = [0,0,params[1]]
+    wins = 0
     i = 0
-    while i <= params[2]-2:
+    l = params[2]
+    rl = params[0]
+    while i <= l-2:
         if CRMI[i] <= params[1] and close[i] > low[i+1]:
             x = i+1
             r = 0
-            while x <= params[2]-2:
-                if (close[i] * params[0]) < high[x+1]:
+            y = close[i] * rl
+            while x <= l-3:
+                if y < high[x+1]:
                     r = 1
-                    x = params[2]-2
+                    x = l
                 x+=1
             if r > 0:
-                result[0] += 1
+                wins += 0
             else:
-                result[1] += 1
+                return 0
         i+=1
+    return wins*params[0]
         
 
 
@@ -816,7 +820,7 @@ class MyPair(object):
         close = []
         high = []
         low = []
-        params = [0, 0,self.lp]
+        params = [0, self.lp]
         
         i = datalen-self.lp-1
         while i <= datalen - 1:
@@ -859,32 +863,34 @@ class MyPair(object):
                     coreresult *= 0
                     ##Get 16 different results
                     i = 0
-                    while i <= 15: 
-                        Floor = float(Floor - 0.01)
-                        params[1] = Floor   
-                        coreresult.append(BackTest(close,high,low,crmi,params,target=[i], async=True)) ##process all 16 scenarios on 16 cores
+                    while i <= 15 and Floor >= 0: 
+                        params[1] = Floor
+                        coreresult[i].append(BackTest(close,high,low,crmi,params,target=[i], async=True)) ##process all 16 scenarios on 16 cores
+                        coreresult[i].append(Floor) ##process all 16 scenarios on 16 cores
                         i+=1
+                        Floor = float(Floor - 0.01)
                         #result.append(BackTest(close,high,low,crmi,params))
                         
                     i = 0
                     while i <= 15:
-                        result.append(coreresult[i].wait())
+                        result[i].append(coreresult[i][0].wait())
+                        result[i].append(coreresult[i][1])
                         i+=1
+                        
+                    print(result)
                        
  
                     i = 0
                     while i <= 15:      
-                        print("wins %.9f & lossess: %.9f") % (result[i][0][0],result[i][0][1]) 
-                        if (result[i][0][0] * rl > self.bestprofit and result[i][0][1] == 0 ):       
-                
-                            self.bestprofit = result[i][0][0] * rl
+                        if (result[i][0] > self.bestprofit):       
+                            self.bestprofit = result[i][0]
                             print("")
                             print("Best profit at %.9f with rl of: %.9f" ) % (self.bestprofit, rl)
                             print("")
                     
 
                             self.rl = rl
-                            self.BestFloor = result[i][0][2]
+                            self.BestFloor = result[i][1]
                             self.IchtPeriod = IchtPeriod
                         i+=1
                            
