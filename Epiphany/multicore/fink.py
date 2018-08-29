@@ -842,13 +842,14 @@ class MyPair(object):
                 i+=1
                 
             rl = 1.102
-            params[0] = rl
+            
 
         
             while (rl > 1.008):
                 
                 rl = float(rl - 0.002)
                 Floor = max(crmi)
+                params[0] = rl
                 
                 while (Floor >= min(crmi)):
                     print("Ichimoku Period at: %d Return Limit at: %.9f Floor at: %.9f") %(IchtPeriod, rl,Floor)
@@ -862,11 +863,13 @@ class MyPair(object):
                         Floor = float(Floor - 0.01)
                         params[1] = Floor   
                         coreresult.append(BackTest(close,high,low,crmi,params,target=[i], async=True)) ##process all 16 scenarios on 16 cores
+                        i+=1
                         #result.append(BackTest(close,high,low,crmi,params))
                         
                     i = 0
                     while i <= 15:
                         result.append(coreresult[i].wait())
+                        i+=1
                        
  
                     i = 0
@@ -883,6 +886,7 @@ class MyPair(object):
                             self.rl = rl
                             self.BestFloor = result[i][0][2]
                             self.IchtPeriod = IchtPeriod
+                        i+=1
                            
                         
                         
