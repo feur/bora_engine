@@ -85,32 +85,22 @@ def GetEntry():
 @offload
 def BackTest(close, low, high, CRMI, params):
     result = [0,0,params[1]]
-    bought = 0
     i = 0
-    x = 0
-    while i<len(close)-2:    
-        if CRMI[i]<=params[1]:
-            initial=close[i]
-            x=i
-            while x<len(close)-2:
-                if initial>=low[x+1]:
-                    bought+=1
-                    i=x
-                    x=len(close)-2
+    while i <= params[2]-2:
+        if CRMI[i] <= params[1] and close[i] > low[i+1]:
+            x = i+1
+            r = 0
+            while x <= params[2]-2:
+                if (close[i] * params[0]) < high[x+1]:
+                    r = 1
+                    x = params[2]-2
                 x+=1
-            x=i
-            while x<len(close)-2:
-                if initial*params[0]<=high[x+1]:
-                    i=x
-                    x=len(close)-2
-                    r=params[0]-1.005
-                    result[0]+=r
-                    if r<0:
-                        result[1]+=1
-                x+=1
-        i+=1    
-    return result 
-
+            if r > 0:
+                result[0] += 1
+            else:
+                result[1] += 1
+        i+=1
+        
 
 
 
@@ -807,16 +797,14 @@ class MyPair(object):
     def Optimise(self):
         
         self.rl = 0
-        #Roof = max(self.SMAIchD)
-    
         IchtPeriod = 44
-        bestsignals = 1
         self.bestprofit = -100
         self.bestwins = 0
         self.bestloss = 0
         self.IchtPeriod = 0
         result = []
         coreresult = []
+        datalen = len(self.close)
         
         print(" ")
         print("...Optimizing Params, Figuring out what's the best for us....")
@@ -828,11 +816,14 @@ class MyPair(object):
         close = []
         high = []
         low = []
+        params = [0, 0,self.lp]
         
-        for i in range (len(self.close)-self.lp-2, len(self.close)-2):
+        i = datalen-self.lp-1
+        while i <= datalen - 1:
             close.append(self.close[i])
             high.append(self.high[i])
             low.append(self.low[i])
+            i+=1
         
         while (IchtPeriod > 4):
             
@@ -845,10 +836,13 @@ class MyPair(object):
             
             #limit the CRMI
             crmi = []
-            for i in range (len(self.CRMI)-self.lp-2, len(self.CRMI)-2): ##same window as prices
+            i = datalen-self.lp-2
+            while i <= datalen - 1:
                 crmi.append(self.CRMI[i])
+                i+=1
                 
             rl = 1.102
+            params[0] = rl
 
         
             while (rl > 1.008):
@@ -857,30 +851,32 @@ class MyPair(object):
                 Floor = max(crmi)
                 
                 while (Floor >= min(crmi)):
-                       
                     print("Ichimoku Period at: %d Return Limit at: %.9f Floor at: %.9f") %(IchtPeriod, rl,Floor)
                     
                     
                     result *= 0
                     coreresult *= 0
                     ##Get 16 different results
-                    for i in range (0,16):
-                        params = [rl, Floor]
+                    i = 0
+                    while i <= 15: 
                         Floor = float(Floor - 0.01)
+                        params[1] = Floor   
                         coreresult.append(BackTest(close,high,low,crmi,params,target=[i], async=True)) ##process all 16 scenarios on 16 cores
                         #result.append(BackTest(close,high,low,crmi,params))
                         
-                    for i in range (0,16):
+                    i = 0
+                    while i <= 15:
                         result.append(coreresult[i].wait())
                        
  
-                    for i in range (0,16):      
-                        print("profit %.9f") % result[i][0][0] 
-                        if (result[i][0][0] > self.bestprofit and result[i][0][0] > 0 and result[i][0][1] == 0 ):       
+                    i = 0
+                    while i <= 15:      
+                        print("wins %.9f & lossess: %.9f") % (result[i][0][0],result[i][0][1]) 
+                        if (result[i][0][0] * rl > self.bestprofit and result[i][0][1] == 0 ):       
                 
-                            self.bestprofit = result[i][0][0]
+                            self.bestprofit = result[i][0][0] * rl
                             print("")
-                            print("Best profit at %.9f" ) % (self.bestprofit * 100)
+                            print("Best profit at %.9f with rl of: %.9f" ) % (self.bestprofit, rl)
                             print("")
                     
 
