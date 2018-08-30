@@ -851,39 +851,42 @@ class MyPair(object):
                 i+=1
                 
             Floor = max(crmi)
+            steps = (max(crmi) - min(crmi)) / 0.01
             
-            print("Ichimoku Period at: %d Floor at: %.9f") %(IchtPeriod,Floor)
+            print("Ichimoku Period at: %d number of Floors to cover: %.9f") %(IchtPeriod,steps)
+            
+            while (Floor >= min(crmi)):
                 
-            result *= 0
-            coreresult *= 0
+                result *= 0
+                coreresult *= 0
                 
-            ##Get 16 different results
-            i = 0
-            while i <= 15 and Floor >= min(self.CRMI): 
-                params[0] = Floor
-                coreresult.append(BackTest(close,high,low,crmi,params,target=[i], async=True)) ##process all 16 scenarios on 16 cores
-                i+=1
-                Floor = float(Floor - 0.01)
+                ##Get 16 different results
+                i = 0
+                while i <= 15: 
+                    params[0] = Floor
+                    coreresult.append(BackTest(close,high,low,crmi,params,target=[i], async=True)) ##process all 16 scenarios on 16 cores
+                    i+=1
+                    Floor = float(Floor - 0.01)
                 #result.append(BackTest(close,high,low,crmi,params))
                         
-            i = 0
-            while i <= 15:
-                result.append(coreresult[i].wait())
-                i+=1
+                i = 0
+                while i <= 15:
+                    result.append(coreresult[i].wait())
+                    i+=1
                         
-            print(result)
+                print(result)
                        
  
-            i = 0
-            while i <= 15:      
-                if (result[i][0][2] > self.bestprofit):       
-                    self.bestprofit = result[i][0][2]
-                    self.rl = result[i][0][0]
-                    self.BestFloor = result[i][0][1]
-                    self.IchtPeriod = IchtPeriod
-                    print("")
-                    print("Best profit at %.9f with rl of: %.9f, floor: %.9f, Ichimoku: " ) % (self.bestprofit, result[i][0][0], result[i][0][1], IchtPeriod)
-                    print("")
+                i = 0
+                while i <= 15:      
+                    if (result[i][0][2] > self.bestprofit):       
+                        self.bestprofit = result[i][0][2]
+                        self.rl = result[i][0][0]
+                        self.BestFloor = result[i][0][1]
+                        self.IchtPeriod = IchtPeriod
+                        print("")
+                        print("Best profit at %.9f with rl of: %.9f, floor: %.9f, Ichimoku: " ) % (self.bestprofit, result[i][0][0], result[i][0][1], IchtPeriod)
+                        print("")
                     i+=1
                     
             IchtPeriod = IchtPeriod + 4
