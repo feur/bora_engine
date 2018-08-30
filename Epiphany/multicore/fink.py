@@ -11,8 +11,42 @@ import numpy as np
 #from pair import *
 from settings import *
 #from ta import *
-from epython import offload
 
+
+@offload
+def BackTest(close, low, high, CRMI, params):
+    rl = 1.102
+    i = params[2] - params[1]
+    x = 0
+    r = 0
+    w = 0.0
+    l = 0
+    m = 0.0
+    n = 0.0
+    while rl > 1.008: 
+        i = 0
+        w = 0
+        l = 0
+        while i <= params[2]-2:
+            if CRMI[i] <= params[0] and close[i] > low[i+1]:
+                x = i+1
+                r = 0
+            while x <= params[2]-2:
+                if close[i] * rl < high[x+1]:
+                    r = 1
+                    x = params[1]
+                x+=1
+            if r > 0:
+                w += rl
+            else:
+                l += 1
+            i+=1
+        if w > m and l == 0: 
+            m = w
+            n = rl
+        rl  = rl - 0.002
+    result = [n,params[0],m]
+    return result
 
 
 def GetEntry():
@@ -49,18 +83,10 @@ def GetEntry():
                         action='store',  # tell to store a value
                         dest='time',  # use `paor` to access value
                         help='Time Interval')
-    parser.add_argument('-a', '--aggression',
-                        action='store', # tell to store a value
-                        dest='agLvl',  # use `paor` to access value
-                        help='your level of aggression ')
     parser.add_argument('-lp', '--lookback',
                         action='store', # tell to store a value
                         dest='lp',  # use `paor` to access value
                         help='lookback period ')
-    parser.add_argument('-sl', '--stoploss',
-                        action='store', # tell to store a value
-                        dest='sl',  # use `paor` to access value
-                        help='your stoplosss')
     
     parser.add_argument('-st', '--standalone',
                         action='store',  # tell to store a value
@@ -82,38 +108,8 @@ def GetEntry():
     return action
 
 
-@offload
-def BackTest(close, low, high, CRMI, params):
-    rl = 1.008
-    i = 0
-    x = 0
-    r = 0
-    w = 0.0
-    l = 0
-    m = 0.0
-    while rl <= 1.1: 
-        i = 0
-        w = 0
-        l = 0
-        while i <= params[1]-2:
-            if CRMI[i] <= params[0] and close[i] > low[i+1]:
-                x = i+1
-                r = 0
-            while x <= params[1]-2:
-                if close[i] * rl < high[x+1]:
-                    r = 1
-                    x = params[1]
-                x+=1
-            if r > 0:
-                w += rl
-            else:
-                l += 1
-            i+=1
-        if w > m and l == 0: 
-            m = w
-        rl+=0.002
-    result = [rl,params[0],m]
-    return result
+
+
 
 
 
@@ -174,6 +170,7 @@ class MyPair(object):
         
         self.initial = 0
         self.position = 0
+        self.entry = 0
         
         self.BestRoof = 0
         self.BestFloor = 0
@@ -238,14 +235,7 @@ class MyPair(object):
         else:
             self.BuyLimit = 0.02
             print("Buy limit set to default 0.02 BTC")
-            
-        if (entry.agLvl != None):
-            self.agLvl = float(entry.agLvl)
-            print("Aggresion Level set to level %d") % self.agLvl
-        else:
-            self.agLvl = 0
-            print("Aggresion Level set to level 0")
-
+        
             
         if (entry.lp != None):
             self.lp = int(entry.lp)
@@ -253,15 +243,7 @@ class MyPair(object):
         else:
             self.lp = int((24*14*60)/self.TimeIntervalINT)
             print("Looking back at default of 2 weeks, period: %d")%(self.lp)
-            
-            
-        if (entry.sl != None):
-            self.sl = float(entry.sl)
-            print("Stop limit at %.9f") % self.sl
-        else:
-            self.sl = 0.9
-            print("Stop limit at default 10%")
-            
+        
             
         if (int(entry.st) == 0): ##system not in standalone mode
             
@@ -574,28 +556,7 @@ class MyPair(object):
             self.kijunSen.append((high + low)/2)
             x+=1
             
-            
-        #get kijunSen 
-        
-        ##first fill in the 0s
-        for z in range (0, kPeriod):
-            self.kijunSen.append(self.data[0]['C'])
-        
-        for x in range (kPeriod-1, len(self.data)):
-            
-            ## find the highest & lowest for 32 periods
-            for y in range (x - (kPeriod), x):
-                if high < self.high[y]:
-                    high = self.high[y]
-                if low > self.low[y]:
-                    low = self.low[y]
-                
-            self.kijunSen.append(float((high + low)/2))
-            high = 0
-            low = 1
-            
 
-    
             
     def GetSMA(self):
 
@@ -787,7 +748,7 @@ class MyPair(object):
             print("close is: %.9f" % self.close[-1])  
             print("open is:  %.9f" % self.open[-1])  
             print("sma is:   %.9f" % self.SMA[-1]) 
-            print("lenght of data: %d") % len(self.close)
+            print("Length of data: %d") % len(self.close)
             print(" ")
             
             print("******* TA *******")
@@ -796,8 +757,6 @@ class MyPair(object):
             
             if (self.CRMI[-1] <= self.BestFloor):
                 self.state = 1 ##buy
-            #elif self.initial != 0 and (self.SMAIchD[-1] >= self.BestRoof or float(self.close[-1])/float(self.initial) > self.rl or float(self.close[-1])/float(self.initial) <= self.sl):
-            #    self.state = 2 ##sell
             else:
                 self.state = 0 ##to prevent buying or selling when we're not meant to sell
                 
@@ -808,93 +767,77 @@ class MyPair(object):
      
         else:
             print("NOT READY TO TRADE")
-             
+            
+    
         
         
     def Optimise(self):
         
-        self.rl = 0
-        
         self.bestprofit = 0
-        self.IchtPeriod = 0
-        result = []
-        coreresult = []
-        datalen = len(self.close)
+        
         
         print(" ")
         print("...Optimizing Params, Figuring out what's the best for us....")
         print("")
         
         OptimizeStartTime = datetime.datetime.now() 
-           
-        ##Limit the data       
-        close = []
-        high = []
-        low = []
-        crmi = []
-        params = [0, self.lp]
         
-        i = datalen-self.lp-1
-        while i <= datalen - 1:
-            close.append(self.close[i])
-            high.append(self.high[i])
-            low.append(self.low[i])
-            i+=1
-        
-        IchtPeriod = 4
-        while (IchtPeriod <= 44):
-
-            ## Get CRMI based on the IchTPeriod
+        datalen = len(self.close)
+        result = []
+        coreresult = []
+        params = [0, self.lp,datalen]
+    
+        IchtPeriod = 42
+        while (IchtPeriod > 4):
+            IchtPeriod = IchtPeriod - 2 
+            
             self.GetIchT(IchtPeriod)
             self.GetCRMI()
             
-            #limit the CRMI
-            crmi *= 0
-            i = datalen-self.lp-1
-            while i <= datalen - 1:
-                crmi.append(self.CRMI[i])
-                i+=1
+            rl = 1.102
+
+            while (rl > 1.008):
                 
-            Floor = max(crmi)
-            steps = (max(crmi) - min(crmi)) / 0.01
-            
-            print("Ichimoku Period at: %d number of Floors to cover: %.9f") %(IchtPeriod,steps)
-            
-            while (Floor >= min(crmi)):
+                rl = float(rl - 0.002)
+                Floor = max(self.CRMI)
                 
-                result *= 0
-                coreresult *= 0
-                
-                ##Get 16 different results
-                i = 0
-                while i <= 15: 
-                    params[0] = Floor
-                    coreresult.append(BackTest(close,high,low,crmi,params,target=[i], async=True)) ##process all 16 scenarios on 16 cores
-                    i+=1
-                    Floor = float(Floor - 0.01)
-                #result.append(BackTest(close,high,low,crmi,params))
-                        
-                i = 0
-                while i <= 15:
-                    result.append(coreresult[i].wait())
-                    i+=1
-                        
-                print(result)
-                       
- 
-                i = 0
-                while i <= 15:      
-                    if (result[i][0][2] > self.bestprofit):       
-                        self.bestprofit = result[i][0][2]
-                        self.rl = result[i][0][0]
-                        self.BestFloor = result[i][0][1]
-                        self.IchtPeriod = IchtPeriod
-                        print("")
-                        print("Best profit at %.9f with rl of: %.9f, floor: %.9f, Ichimoku: " ) % (self.bestprofit, result[i][0][0], result[i][0][1], IchtPeriod)
-                        print("")
-                    i+=1
+                while (Floor >= min(self.CRMI)):
                     
-            IchtPeriod = IchtPeriod + 4
+                    result *= 0
+                    coreresult *= 0
+                
+                    ##Get 16 different results
+                    i = 0
+                    while i <= 15: 
+                        params[0] = Floor
+                        coreresult.append(BackTest(self.close,self.high,self.low,self.CRMI,params,target=[i], async=True)) ##process all 16 scenarios on 16 cores
+                        i+=1
+                        Floor = float(Floor - 0.01)
+                        #result.append(BackTest(close,high,low,crmi,params))
+                        
+                    i = 0
+                    while i <= 15:
+                        result.append(coreresult[i].wait())
+                        i+=1
+                        
+                    print(result)
+                    
+                   
+                    Floor = Floor - 0.01
+                 
+                        
+                    i = 0
+                    while i <= 15:      
+                        if (result[i][0][2] > self.bestprofit):       
+                            self.bestprofit = result[i][0][2]
+                            self.rl = result[i][0][0]
+                            self.BestFloor = result[i][0][1]
+                            self.IchtPeriod = IchtPeriod
+                            print("")
+                            print("Best profit at %.9f with rl of: %.9f, floor: %.9f, Ichimoku: %d" ) % (self.bestprofit, result[i][0][0], result[i][0][1], IchtPeriod)
+                            print("")
+                        i+=1
+                            
                            
                         
                         
@@ -903,15 +846,12 @@ class MyPair(object):
         OptimizeFinishTime = datetime.datetime.now()
         
         tdiff = OptimizeFinishTime - OptimizeStartTime 
-        self.optimizeTime = int(round(tdiff.total_seconds()))
+        self.optimizeTime = int(tdiff.total_seconds())
         print("")
         print("")
         print("______________DONE___________________")
         print("")
         print("%d seconds for Optimizing") % (self.optimizeTime)
-        print("")
-        
-        print("______________!!!!!!___________________ ")
         print("")
         print("Total Best return = %.9f " % (self.bestprofit * 100))
         print("If HOLD = %.9f ") % hold
@@ -920,6 +860,7 @@ class MyPair(object):
         print("")
         print("______________PARAMS___________________ ")
         print("")
+        print("Stop Loss:  %.9f") % self.sl
         print("Return Limit:  %.9f") % self.rl
         print("FLOOR: %.9f") % self.BestFloor
         print("Ichimoku Period: %d") % self.IchtPeriod
@@ -928,7 +869,8 @@ class MyPair(object):
         
         if (self.bestprofit > 0):
             self.ready = 1
-            print("READY TO TRADE NOW")
+            print("____READY TO TRADE NOW_____________")
+            print("")
         else:
             self.ready = 0
             
@@ -937,9 +879,11 @@ class MyPair(object):
             
             
     def UploadData(self):
+        
+        entry = self.CRMI[-1] / self.BestFloor
 
         cursor = self.conn.cursor()
-        query = "UPDATE Pairs SET TradeSignal = %d, HoldBTC=%.9f, PID = %d, ReturnLimit = %.9f, OptimizeTime = %d WHERE Pair = '%s'" % (self.ready, self.balanceBTC, self.pid,self.rl,self.optimizeTime,self.pairName)
+        query = "UPDATE Pairs SET TradeSignal = %d, HoldBTC=%.9f, PID = %d, ReturnLimit = %.9f, StopLoss = %.9f, Position = %.9f, Entry = %.9f, OptimizeTime = %d WHERE Pair = '%s'" % (self.ready, self.balanceBTC, self.pid,self.rl,self.sl,self.position,entry,self.optimizeTime,self.pairName)
 
         try:
             cursor.execute(query)
@@ -949,6 +893,9 @@ class MyPair(object):
             print(error)
             self.conn.rollback()
             self.conn.close()
+            
+            
+    
         
         
                         
