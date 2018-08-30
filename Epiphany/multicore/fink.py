@@ -15,38 +15,46 @@ from epython import offload
 
 
 @offload
-def BackTest(close, low, high, CRMI, params):
-    rl = 1.102
+def BackTest(close,high,low,CRMI,params):
     i = 0
-    x = 0
-    r = 0
     w = 0.0
     l = 0
+    rl = 1.008
     m = 0.0
     n = 0.0
-    while rl > 1.008: 
+    r = 0
+    initial = 0.0
+    Floor = params[0]
+    lp = params[1]
+    while rl <= 1.1:
         i = 0
         w = 0
         l = 0
-        while i <= params[1]-2:
-            if CRMI[i] <= params[0] and close[i] > low[i+1]:
+        while i <= lp - 2:
+            
+            if CRMI[i] <= Floor and close[i] > low[i+1]:
                 x = i+1
                 r = 0
-            while x <= params[1]-2:
-                if close[i] * rl < high[x+1]:
-                    r = 1
-                    x = params[1]
-                x+=1
-            if r > 0:
-                w += rl
-            else:
-                l += 1
+                initial = close[i]
+                while x <= lp-2:
+                    if (initial * rl) < high[x+1]:
+                        r = 1
+                        break
+                    x+=1
+                if r > 0:
+                    w += rl
+                else:
+                    l += 1
             i+=1
-        if w > m and l == 0: 
+        #print("wins: %.9f, lossess: %d, rl: %.9f. floor: %.9f") %(w,l,rl,params[0])
+        if (l == 0 and w > m):
             m = w
             n = rl
-        rl  = rl - 0.002
-    result = [n,params[0],m]
+            #quit()
+            
+        rl+=0.002
+        
+    result = [n,Floor,m]
     return result
 
 
