@@ -11,12 +11,13 @@ import numpy as np
 #from pair import *
 from settings import *
 #from ta import *
+from epython import offload
 
 
 @offload
 def BackTest(close, low, high, CRMI, params):
     rl = 1.102
-    i = params[2] - params[1]
+    i = 0
     x = 0
     r = 0
     w = 0.0
@@ -27,11 +28,11 @@ def BackTest(close, low, high, CRMI, params):
         i = 0
         w = 0
         l = 0
-        while i <= params[2]-2:
+        while i <= params[1]-2:
             if CRMI[i] <= params[0] and close[i] > low[i+1]:
                 x = i+1
                 r = 0
-            while x <= params[2]-2:
+            while x <= params[1]-2:
                 if close[i] * rl < high[x+1]:
                     r = 1
                     x = params[1]
@@ -785,8 +786,23 @@ class MyPair(object):
         datalen = len(self.close)
         result = []
         coreresult = []
-        params = [0, self.lp,datalen]
+        params = [0, self.lp]
     
+        
+         ##Limit the data       
+        close = []
+        high = []
+        low = []
+        crmi = []
+        
+        i = datalen-self.lp-1
+        while i <= datalen - 1:
+            close.append(self.close[i])
+            high.append(self.high[i])
+            low.append(self.low[i])
+            i+=1
+        
+        
         IchtPeriod = 42
         while (IchtPeriod > 4):
             IchtPeriod = IchtPeriod - 2 
@@ -794,49 +810,47 @@ class MyPair(object):
             self.GetIchT(IchtPeriod)
             self.GetCRMI()
             
-            rl = 1.102
-
-            while (rl > 1.008):
+            #limit the CRMI
+            crmi *= 0
+            i = datalen-self.lp-1
+            while i <= datalen - 1:
+                crmi.append(self.CRMI[i])
+                i+=1
+            
+            Floor = max(self.CRMI)
                 
-                rl = float(rl - 0.002)
-                Floor = max(self.CRMI)
-                
-                while (Floor >= min(self.CRMI)):
+            while (Floor >= min(self.CRMI)):
                     
-                    result *= 0
-                    coreresult *= 0
+                result *= 0
+                coreresult *= 0
                 
-                    ##Get 16 different results
-                    i = 0
-                    while i <= 15: 
-                        params[0] = Floor
-                        coreresult.append(BackTest(self.close,self.high,self.low,self.CRMI,params,target=[i], async=True)) ##process all 16 scenarios on 16 cores
-                        i+=1
-                        Floor = float(Floor - 0.01)
-                        #result.append(BackTest(close,high,low,crmi,params))
+                ##Get 16 different results
+                i = 0
+                while i <= 15: 
+                    params[0] = Floor
+                    coreresult.append(BackTest(close,high,low,crmi,params,target=[i], async=True)) ##process all 16 scenarios on 16 cores
+                    Floor = float(Floor - 0.01)
+                    i+=1
+                    #result.append(BackTest(close,high,low,crmi,params))
                         
-                    i = 0
-                    while i <= 15:
-                        result.append(coreresult[i].wait())
-                        i+=1
+                i = 0
+                while i <= 15:
+                    result.append(coreresult[i].wait())
+                    i+=1
                         
-                    print(result)
+                print(result)
                     
-                   
-                    Floor = Floor - 0.01
-                 
-                        
-                    i = 0
-                    while i <= 15:      
-                        if (result[i][0][2] > self.bestprofit):       
-                            self.bestprofit = result[i][0][2]
-                            self.rl = result[i][0][0]
-                            self.BestFloor = result[i][0][1]
-                            self.IchtPeriod = IchtPeriod
-                            print("")
-                            print("Best profit at %.9f with rl of: %.9f, floor: %.9f, Ichimoku: %d" ) % (self.bestprofit, result[i][0][0], result[i][0][1], IchtPeriod)
-                            print("")
-                        i+=1
+                i = 0
+                while i <= 15:      
+                    if (result[i][0][2] > self.bestprofit):       
+                        self.bestprofit = result[i][0][2]
+                        self.rl = result[i][0][0]
+                        self.BestFloor = result[i][0][1]
+                        self.IchtPeriod = IchtPeriod
+                        print("")
+                        print("Best profit at %.9f with rl of: %.9f, floor: %.9f, Ichimoku: %d" ) % (self.bestprofit, result[i][0][0], result[i][0][1], IchtPeriod)
+                        print("")
+                    i+=1
                             
                            
                         
