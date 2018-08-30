@@ -84,9 +84,8 @@ def GetEntry():
 
 @offload
 def BackTest(close, low, high, CRMI, params):
+    result = [0.0,params[1],0.0]
     rl = 0.008
-    m = 0.0
-    n = 0.0
     while rl <= 1.1: 
         i = 0
         w = 0.0
@@ -105,11 +104,11 @@ def BackTest(close, low, high, CRMI, params):
             else:
                 w = 0.0
             i+=1
-        if w > m: 
-            m = w
-            n = rl
+        if w > result[2]: 
+            result[2] = w
+            result[0] = rl
         rl+=0.002
-    return n, params[1], m 
+    return result
         
 
 
