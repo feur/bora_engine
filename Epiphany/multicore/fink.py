@@ -84,33 +84,35 @@ def GetEntry():
 
 @offload
 def BackTest(close, low, high, CRMI, params):
-    result = [0.0,params[0],0.0]
     rl = 1.008
     i = 0
     x = 0
     r = 0
     w = 0.0
+    l = 0
+    m = 0.0
     while rl <= 1.1: 
         i = 0
-        w = 0.0
+        w = 0
+        l = 0
         while i <= params[1]-2:
             if CRMI[i] <= params[0] and close[i] > low[i+1]:
                 x = i+1
                 r = 0
-            while x <= params[1]-3:
+            while x <= params[1]-2:
                 if close[i] * rl < high[x+1]:
                     r = 1
                     x = params[1]
                 x+=1
             if r > 0:
-                w += close[i] * rl
+                w += rl
             else:
-                w = 0.0
+                l += 1
             i+=1
-        if w > result[2]: 
-            result[2] = w
-            result[0] = rl
+        if w > m and l == 0: 
+            m = w
         rl+=0.002
+    result = [rl,params[0],m]
     return result
 
 
@@ -389,12 +391,13 @@ class MyPair(object):
          
             
          self.data.append(self.raw[0]) ##get the first data in 
+         rawlen = len(self.raw)
          
          ##this is where we check the intervals between every data and fill in the blanks
-         for i in range(1,len(self.raw)):
+         i = 1
+         while i <= rawlen-1:
              tdiff = datetime.datetime.strptime(self.raw[i]['T'],"%Y-%m-%dT%H:%M:%S") - datetime.datetime.strptime(self.raw[i-1]['T'],"%Y-%m-%dT%H:%M:%S") 
              td_mins = int(round(tdiff.total_seconds() / 60))
-            # print(td_mins)
                            
              ##here we insert the missing numbers
              if (td_mins > self.TimeIntervalINT):         
@@ -409,17 +412,17 @@ class MyPair(object):
              else: 
                  
                  self.data.append(self.raw[i])
+             i+=1
                  
          ##this is where we check if the last data time is the current time if not, fill in blanks
                  
-         
          currentTime = datetime.datetime.now()
          tdiff = currentTime - datetime.datetime.strptime(self.data[-1]['T'],"%Y-%m-%dT%H:%M:%S") 
          td_mins = int(round(tdiff.total_seconds() / 60)) - 600
          
          if (td_mins > 0):
              interval = td_mins / self.TimeIntervalINT
-             
+             i = 1
              for x in range(1,interval):
                      self.data.append(self.data[-1])  
                      self.data[-1]['L'] = self.data[-1]['C']
@@ -431,7 +434,7 @@ class MyPair(object):
          self.prev = self.data[-2]
          
              
-         
+        
          for i in self.data:
              self.high.append(i['H'])
              self.low.append(i['L'])
@@ -544,34 +547,32 @@ class MyPair(object):
         
     def GetIchT(self,kPeriod):
         
-        self.tenkanSen *= 0
         self.kijunSen *= 0
-        self.senkouB *= 0
-        self.senkouA *= 0
         
-        tPeriod = 9
-        #kPeriod = 800
-        high = 0
-        low = 1
+        datalen = len(self.close)
         
-        #get Tenkansen 
+        #get kijunSen 
         
         ##first fill in the 0s
-        for z in range (0, tPeriod):
-            self.tenkanSen.append(self.data[0]['C'])
+        z = 0
+        while z <= kPeriod-1:
+            self.kijunSen.append(0)
+            z+=1
         
-        for x in range (tPeriod-1, len(self.data)):
-            
-            ## find the highest & lowest for 9 periods
-            for y in range (x - (tPeriod), x):
+        x = kPeriod
+        while x <= datalen - 1:
+            y = x - kPeriod
+            high = 0
+            low = 1
+            while y <= x:
                 if high < self.high[y]:
                     high = self.high[y]
                 if low > self.low[y]:
                     low = self.low[y]
-              
-            self.tenkanSen.append(float((high + low)/2))
-            high = 0
-            low = 1
+                y+=1
+                
+            self.kijunSen.append((high + low)/2)
+            x+=1
             
             
         #get kijunSen 
@@ -599,24 +600,26 @@ class MyPair(object):
     def GetSMA(self):
 
         SMAPeriod = 4
-        w = 0
         
         self.SMA *= 0
-        
-        ##SMA 4 periods of close
+        datalen = len(self.close)
         
         ##first fill in the 0s
-        for z in range (0, SMAPeriod):
-            self.SMA.append(self.close[0])
+        z = 0
+        while z <= SMAPeriod-1:
+            self.SMA.append(0)
+            z+=1
         
-        for x in range (SMAPeriod-1, len(self.data)):
-            
-            ## find the highest & lowest for 9 periods
-            for y in range (x - (SMAPeriod), x):
+        x = SMAPeriod
+        while x <= datalen - 1:
+            w = 0
+            y = x - SMAPeriod
+            while y <= x:
                 w = float(w+self.close[y])
+                y+=1
                 
             self.SMA.append(float(w/SMAPeriod))
-            w = 0
+            x+=1
             
             
         
@@ -624,14 +627,16 @@ class MyPair(object):
     def GetCRMI(self):
         
         self.CRMI  *= 0
-        
+        datalen = len(self.kijunSen)
   
          ## now get the differences    
-        for z in range (0,len(self.kijunSen)):
-            if (self.SMA[z] == 0 or self.kijunSen[0] == 0):
-                self.CRMI.append(0)
+        z = 0
+        while z <= datalen - 1:
+            if (self.SMA[z] == 0 or self.kijunSen[z] == 0):
+                self.CRMI.append(1)
             else:
                 self.CRMI.append(float(self.SMA[z]/self.kijunSen[z]))
+            z+=1
         
             
         
@@ -845,7 +850,7 @@ class MyPair(object):
             
             #limit the CRMI
             crmi *= 0
-            i = datalen-self.lp-2
+            i = datalen-self.lp-1
             while i <= datalen - 1:
                 crmi.append(self.CRMI[i])
                 i+=1
