@@ -39,18 +39,16 @@ def BackTest(close,high,low,CRMI,params):
                 while x <= lp-2:
                     if (initial * rl) < high[x+1]:
                         r = 1
-                        break
+                        x = lp -2
                     x+=1
                 if r > 0:
                     w += rl
                 else:
                     l += 1
             i+=1
-        #print("wins: %.9f, lossess: %d, rl: %.9f. floor: %.9f") %(w,l,rl,params[0])
         if (l == 0 and w > m):
             m = w
             n = rl
-            #quit()
             
         rl+=0.002
         
@@ -803,7 +801,7 @@ class MyPair(object):
         low = []
         crmi = []
         
-        i = datalen-self.lp-1
+        i = datalen-self.lp
         while i <= datalen - 1:
             close.append(self.close[i])
             high.append(self.high[i])
@@ -820,7 +818,7 @@ class MyPair(object):
             
             #limit the CRMI
             crmi *= 0
-            i = datalen-self.lp-1
+            i = datalen-self.lp
             while i <= datalen - 1:
                 crmi.append(self.CRMI[i])
                 i+=1
@@ -846,7 +844,7 @@ class MyPair(object):
                     result.append(coreresult[i].wait())
                     i+=1
                         
-                print(result)
+                #print(result)
                     
                 i = 0
                 while i <= 15:      
@@ -855,6 +853,7 @@ class MyPair(object):
                         self.rl = result[i][0][0]
                         self.BestFloor = result[i][0][1]
                         self.IchtPeriod = IchtPeriod
+                        self.sl = 0.7
                         print("")
                         print("Best profit at %.9f with rl of: %.9f, floor: %.9f, Ichimoku: %d" ) % (self.bestprofit, result[i][0][0], result[i][0][1], IchtPeriod)
                         print("")

@@ -2,12 +2,64 @@ from bittrex.bittrex import *
 import argparse
 import time
 import os
+import subprocess
+import psutil
 import MySQLdb
+import time
 import datetime
 import numpy as np
+#from pair import *
 from settings import *
+#from ta import *
 
 
+#def BackTest(close, low, high, CRMI, params):
+def BackTest(close,high,low,CRMI,params):
+    i = 0
+    w = 0.0
+    l = 0
+    rl = 1.008
+    m = 0.0
+    n = 0.0
+    r = 0
+    initial = 0.0
+    Floor = params[0]
+    lp = params[1]
+    while rl <= 1.1:
+        i = 0
+        w = 0
+        l = 0
+        while i <= lp - 2:
+            
+            if CRMI[i] <= Floor and close[i] > low[i+1]:
+                x = i+1
+                r = 0
+                initial = close[i]
+                while x <= lp-2:
+                    if (initial * rl) < high[x+1]:
+                        r = 1
+                        break
+                    x+=1
+                if r > 0:
+                    w += rl
+                else:
+                    l += 1
+            i+=1
+        #print("wins: %.9f, lossess: %d, rl: %.9f. floor: %.9f") %(w,l,rl,params[0])
+        if (l == 0 and w > m):
+            m = w
+            n = rl
+            #quit()
+            
+        rl+=0.002
+        
+    result = [n,Floor,m]
+    return result
+        
+    
+    
+    
+    
 
 def GetEntry():
     
@@ -130,6 +182,7 @@ class MyPair(object):
         
         self.initial = 0
         self.position = 0
+        self.entry = 0
         
         self.BestRoof = 0
         self.BestFloor = 0
@@ -332,12 +385,13 @@ class MyPair(object):
          
             
          self.data.append(self.raw[0]) ##get the first data in 
+         rawlen = len(self.raw)
          
          ##this is where we check the intervals between every data and fill in the blanks
-         for i in range(1,len(self.raw)):
+         i = 1
+         while i <= rawlen-1:
              tdiff = datetime.datetime.strptime(self.raw[i]['T'],"%Y-%m-%dT%H:%M:%S") - datetime.datetime.strptime(self.raw[i-1]['T'],"%Y-%m-%dT%H:%M:%S") 
              td_mins = int(round(tdiff.total_seconds() / 60))
-            # print(td_mins)
                            
              ##here we insert the missing numbers
              if (td_mins > self.TimeIntervalINT):         
@@ -352,17 +406,17 @@ class MyPair(object):
              else: 
                  
                  self.data.append(self.raw[i])
+             i+=1
                  
          ##this is where we check if the last data time is the current time if not, fill in blanks
                  
-         
          currentTime = datetime.datetime.now()
          tdiff = currentTime - datetime.datetime.strptime(self.data[-1]['T'],"%Y-%m-%dT%H:%M:%S") 
          td_mins = int(round(tdiff.total_seconds() / 60)) - 600
          
          if (td_mins > 0):
              interval = td_mins / self.TimeIntervalINT
-             
+             i = 1
              for x in range(1,interval):
                      self.data.append(self.data[-1])  
                      self.data[-1]['L'] = self.data[-1]['C']
@@ -374,7 +428,7 @@ class MyPair(object):
          self.prev = self.data[-2]
          
              
-         
+        
          for i in self.data:
              self.high.append(i['H'])
              self.low.append(i['L'])
@@ -487,79 +541,58 @@ class MyPair(object):
         
     def GetIchT(self,kPeriod):
         
-        self.tenkanSen *= 0
         self.kijunSen *= 0
-        self.senkouB *= 0
-        self.senkouA *= 0
         
-        tPeriod = 9
-        #kPeriod = 800
-        high = 0
-        low = 1
+        datalen = len(self.close)
         
-        #get Tenkansen 
-        
-        ##first fill in the 0s
-        for z in range (0, tPeriod):
-            self.tenkanSen.append(self.data[0]['C'])
-        
-        for x in range (tPeriod-1, len(self.data)):
-            
-            ## find the highest & lowest for 9 periods
-            for y in range (x - (tPeriod), x):
-                if high < self.high[y]:
-                    high = self.high[y]
-                if low > self.low[y]:
-                    low = self.low[y]
-              
-            self.tenkanSen.append(float((high + low)/2))
-            high = 0
-            low = 1
-            
-            
         #get kijunSen 
         
         ##first fill in the 0s
-        for z in range (0, kPeriod):
-            self.kijunSen.append(self.data[0]['C'])
+        z = 0
+        while z <= kPeriod-1:
+            self.kijunSen.append(0)
+            z+=1
         
-        for x in range (kPeriod-1, len(self.data)):
-            
-            ## find the highest & lowest for 32 periods
-            for y in range (x - (kPeriod), x):
+        x = kPeriod
+        while x <= datalen - 1:
+            y = x - kPeriod
+            high = 0
+            low = 1
+            while y <= x:
                 if high < self.high[y]:
                     high = self.high[y]
                 if low > self.low[y]:
                     low = self.low[y]
+                y+=1
                 
-            self.kijunSen.append(float((high + low)/2))
-            high = 0
-            low = 1
+            self.kijunSen.append((high + low)/2)
+            x+=1
             
 
-    
             
     def GetSMA(self):
 
         SMAPeriod = 4
-        w = 0
         
         self.SMA *= 0
-        
-        ##SMA 4 periods of close
+        datalen = len(self.close)
         
         ##first fill in the 0s
-        for z in range (0, SMAPeriod):
-            self.SMA.append(self.close[0])
+        z = 0
+        while z <= SMAPeriod-1:
+            self.SMA.append(0)
+            z+=1
         
-        for x in range (SMAPeriod-1, len(self.data)):
-            
-            ## find the highest & lowest for 9 periods
-            for y in range (x - (SMAPeriod), x):
+        x = SMAPeriod
+        while x <= datalen - 1:
+            w = 0
+            y = x - SMAPeriod
+            while y <= x:
                 w = float(w+self.close[y])
+                y+=1
                 
             self.SMA.append(float(w/SMAPeriod))
-            w = 0
+            x+=1
             
             
         
@@ -567,14 +600,16 @@ class MyPair(object):
     def GetCRMI(self):
         
         self.CRMI  *= 0
-        
+        datalen = len(self.kijunSen)
   
          ## now get the differences    
-        for z in range (0,len(self.kijunSen)):
-            if (self.SMA[z] == 0 or self.kijunSen[0] == 0):
-                self.CRMI.append(0)
+        z = 0
+        while z <= datalen - 1:
+            if (self.SMA[z] == 0 or self.kijunSen[z] == 0):
+                self.CRMI.append(1)
             else:
                 self.CRMI.append(float(self.SMA[z]/self.kijunSen[z]))
+            z+=1
         
             
         
@@ -746,16 +781,13 @@ class MyPair(object):
         else:
             print("NOT READY TO TRADE")
             
+    
         
         
     def Optimise(self):
         
-        self.rl = 0
-        sl = 0.99
-        
-        IchtPeriod = 42
         self.bestprofit = 0
-        self.IchtPeriod = 0
+        
         
         print(" ")
         print("...Optimizing Params, Figuring out what's the best for us....")
@@ -763,74 +795,65 @@ class MyPair(object):
         
         OptimizeStartTime = datetime.datetime.now() 
         
-        datalength = len(self.close)
-           
+        datalen = len(self.close)
+        result = []
+        params = [0.0, self.lp]
+    
         
+         ##Limit the data       
+        close = []
+        high = []
+        low = []
+        crmi = []
+        
+        i = datalen-self.lp
+        while i <= datalen - 1:
+            close.append(self.close[i])
+            high.append(self.high[i])
+            low.append(self.low[i])
+            i+=1
+
+        
+        IchtPeriod = 42
         while (IchtPeriod > 4):
             IchtPeriod = IchtPeriod - 2 
-            
-            ## Get CRMI based on the IchTPeriod
+            print("Ichimoku: %d") % (IchtPeriod)  
             self.GetIchT(IchtPeriod)
             self.GetCRMI()
             
-            rl = 1.102
-
-            while (rl > 1.008):
+            #limit the CRMI
+            crmi *= 0
+            i = datalen-self.lp
+            while i <= datalen - 1:
+                crmi.append(self.CRMI[i])
+                i+=1
+            
+            Floor = max(self.CRMI)
                 
-                rl = float(rl - 0.002)
-                Floor = max(self.CRMI)
-                
-                while (Floor >= min(self.CRMI)):
-                   
-                    Floor = Floor - 0.01
-                    sl = 0.99
-                    
-                    while (sl >= 0.9):
-                        sl = sl - 0.01
-                        
-                        profit = 0
-                        loss = 0
-                    
-                        i = datalength-1-self.lp
-                    
-                        while i<datalength-2:    
-                            if self.CRMI[i]<=Floor:
-                                initial=self.close[i]
-                                while i<datalength-2:
-                                    if initial>=self.low[i+1]:
-                                        break
-                                    i+=1
-                                while i<datalength-2:
-                                    if initial*rl<=self.high[i+1]:
-                                        r=rl-1.005
-                                        break
-                                    elif self.close[i] <= initial * sl:
-                                        r=(self.close[i]/initial) - 1.005
-                                        break
-                                    else:
-                                        r=(self.close[i]/initial) - 1.005
-                                    i+=1
-                                if r<0:
-                                    loss+=1
-                                profit+=r      
-                            i+=1  
-                        
-                    
-                        if (profit > self.bestprofit and loss == 0 ):       
-                            self.bestprofit = profit
-                            print("")
-                            print("Ichimoku Period at: %d Return Limit at: %.9f Floor at: %.9f ||||||||||") %(IchtPeriod, rl, Floor)
-                            print("Best profit at %.9f with stoploss of: %.9f" ) % (self.bestprofit, sl)
-                            print("")
-                        
-                            self.sl = sl
-                            self.rl = rl
-                            self.BestFloor = Floor
-                            self.IchtPeriod = IchtPeriod
-                           
-                        
-                        
+            while (Floor >= min(self.CRMI)):
+                Floor = float(Floor - 0.01)
+                params[0] = Floor
+                result = list(BackTest(close,high,low,crmi,params))
+                #result = list(self.BackTestE(Floor)) ##process all 16 scenarios on 16 cores
+                #result.append(BackTest(close,high,low,crmi,params))
 
+                #print(result)
+                  
+                if (result[2] > self.bestprofit):       
+                    self.bestprofit = result[2]
+                    self.sl = 0.7
+                    self.rl = result[0]
+                    self.BestFloor = result[1]
+                    self.IchtPeriod = IchtPeriod
+                    #self.rl = 1.010000000
+                    #self.BestFloor = 1.242570059
+                    #self.IchtPeriod = 10
+                    print("")
+                    print("Best profit at %.9f with rl of: %.9f, floor: %.9f, Ichimoku: %d" ) % (self.bestprofit, result[0], result[1], IchtPeriod)
+                    print("")
+                    
+                
+                
         hold = float((float(self.close[-1]) / float(self.close[len(self.close)-1-self.lp]) - 1.005) * 100)
         OptimizeFinishTime = datetime.datetime.now()
         
@@ -862,15 +885,15 @@ class MyPair(object):
             print("")
         else:
             self.ready = 0
-            
-            
-    
+        
             
             
     def UploadData(self):
+        
+        entry = self.CRMI[-1] / self.BestFloor
 
         cursor = self.conn.cursor()
-        query = "UPDATE Pairs SET TradeSignal = %d, HoldBTC=%.9f, PID = %d, ReturnLimit = %.9f, OptimizeTime = %d WHERE Pair = '%s'" % (self.ready, self.balanceBTC, self.pid,self.rl,self.optimizeTime,self.pairName)
+        query = "UPDATE Pairs SET TradeSignal = %d, HoldBTC=%.9f, PID = %d, ReturnLimit = %.9f, StopLoss = %.9f, Position = %.9f, Entry = %.9f, OptimizeTime = %d WHERE Pair = '%s'" % (self.ready, self.balanceBTC, self.pid,self.rl,self.sl,self.position,entry,self.optimizeTime,self.pairName)
 
         try:
             cursor.execute(query)
@@ -881,7 +904,107 @@ class MyPair(object):
             self.conn.rollback()
             self.conn.close()
             
+            
+    def PlotData(self):
+        
+        import matplotlib.pyplot as plt
+        
+        CRMI = []
+        timeD = []
+        close = []
+        
+        BuyOrder = []
+        BuyTime = []
+        SellOrder = []  
+        SellTime = []
+        BuySignals = []
+        BuySignalsTime = []
+        
+        
+                    
+        datalength = len(self.close)
+                    
 
+        print("")
+        print("Ploting.....")
+        i = datalength-self.lp
+        r = 0
+        w = 0
+        l = 0
+        
+        
+        while i <= datalength-2:
+            if self.CRMI[i] <= self.BestFloor and self.close[i] > self.low[i+1]:
+                x = i+1
+                BuyOrder.append(self.close[i])
+                BuyTime.append(self.time[x])
+                while x <=datalength-2:
+                    if (self.close[i] * self.rl) < self.high[x+1]:
+                        r = 1
+                        SellOrder.append(self.close[i]*self.rl)
+                        SellTime.append(self.time[x])
+                        break
+                    x+=1
+                if r > 0:
+                    w+= 1
+                else:
+                    l+= 1
+            i+=1
+            
+        print(w)
+        print(l)
+        
+     
+            
+        i = datalength-self.lp
+        while i<=datalength-1:
+            close.append(self.close[i])
+            CRMI.append(self.CRMI[i])
+            timeD.append(self.time[i])
+            i+=1
+            
+                    
+        
+        #plt.plot(self.time, self.close, label='Closing Price',color='black', linewidth=0.1)
+        plt.figure(1)
+        
+        plt.subplot(211)
+        plt.plot(BuyTime, BuyOrder, '^', markersize=7, color='g', label = 'Bought')
+        plt.plot(SellTime, SellOrder, 'v', markersize=7, color='r', label = 'Sold')
+        plt.plot(BuySignalsTime, BuySignals, '^', markersize=3, color='blue', label ='Buy Signal')
+        plt.plot(timeD, close, label='Close',color='black',linewidth=0.3)
+        
+        
+       # plt.plot(timeD, SMA, color = 'red', label='SMA')
+       # plt.plot(timeD, kijunSen, color = 'blue', label='kijunSen')
+        
+        plt.title(self.pairName)
+        plt.ylabel('price')
+        plt.xlabel('period')
+        
+        
+ 
+        plt.legend(loc=0)
+
+        plt.subplot(212)
+        #plt.plot(timeD, IchD, color = 'red', label='ICHD')
+        plt.plot(timeD, CRMI, color = 'red', label='Difference')
+        #plt.plot(timeD, SMAIchDSMA, color = 'blue', label='SMA')
+        plt.title("Custom Relative Momentum Indicator")
+        plt.xlabel('period')
+        
+        #plt.subplot(313)
+        #plt.plot(timeD, RollingFib, color = 'blue')
+        #plt.title("Fib Retracement Level")
+        #plt.xlabel('period')
+        
+        
+        plt.show()
+            
+            
+    
+        
+        
                         
     def Trade(self):
         
@@ -897,10 +1020,14 @@ class MyPair(object):
             print("sorry your agent system is not activated, please activate it !")
             quit()
             
+         
+        
         self.GetSignal()              ##get Signal
         if (self.st == 0):
             self.UploadData()
         
+      
+     
         print("____________________________________")
         print(" ")
          
