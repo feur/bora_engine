@@ -23,6 +23,11 @@ def BackTest_BuySignal(x,y,z,p):
     c = z
     d = p
     
+    print(a)
+    print(b)
+    print(c)
+    print(d)
+    
     if a <= b and c > d:
         return 1
     else:
@@ -763,24 +768,24 @@ class MyPair(object):
         i = datalen - self.lp
         while i <= datalen-1:
             x = 0
-            while x <= 15 and i+x <= datalen-1:
+            while x <= 15 and i+x <= datalen-2:
                 coreresult.append(BackTest_BuySignal(self.CRMI[i+x], Floor, self.close[i+x], self.low[i+x+1], target=[x],async=True))
                 x +=1
                 
             o = 0
-            while o <= x-1:
-                Buy.append(coreresult[x].wait())
+            while o <= len(coreresult):
+                Buy.append(coreresult[o].wait())
                 o+=1
                 
             i+=1
                 
-        print(Buy)
+        #print(Buy)
         
         ##Now that we've got an array of buy signals, we process the returns per buy signals *possibly can be accellerated
         y = 0
         w = 0
         while y <= len(Buy) - 1:
-            if (Buy[y]): ## a buy signal
+            if (Buy[y][0] == 1): ## a buy signal
                 z = y+1
                 while z <= datalen-2:
                     if (self.close[y] * rl) < self.high[z+1]:
@@ -823,7 +828,7 @@ class MyPair(object):
                 
                 while Floor < middle:
                     Floor += 0.005
-                    r = self.BackTest(Floor)
+                    r = self.BackTest(Floor,rl)
                         
                     print("Ichimoku Period at: %d Return Limit at: %.9f Floor at: %.9f ||||||||||") %(IchtPeriod, rl, Floor)
                     print("returns: %d") %(r)

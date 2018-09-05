@@ -729,7 +729,7 @@ class MyPair(object):
             if (self.ex == 0):
                 self.MaintainOrder()
             else:
-                self.PlotData()
+                
                 print("Experiment Done")
      
         else:
