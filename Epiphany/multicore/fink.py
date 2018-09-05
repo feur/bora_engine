@@ -10,51 +10,15 @@ import datetime
 import numpy as np
 #from pair import *
 from settings import *
+import statistics
 #from ta import *
 from epython import offload
 
 
 @offload
-def BackTest(close,high,low,CRMI,params):
-    i = 0
-    w = 0.0
-    l = 0
-    rl = 1.008
-    m = 0.0
-    n = 0.0
-    r = 0
-    initial = 0.0
-    Floor = params[0]
-    lp = params[1]
-    while rl <= 1.1:
-        i = 0
-        w = 0
-        l = 0
-        while i <= lp - 2:
-            
-            if CRMI[i] <= Floor and close[i] > low[i+1]:
-                x = i+1
-                r = 0
-                initial = close[i]
-                while x <= lp-2:
-                    if (initial * rl) < high[x+1]:
-                        r = 1
-                        x = lp -2
-                    x+=1
-                if r > 0:
-                    w += rl
-                else:
-                    l += 1
-            i+=1
-        if (l == 0 and w > m):
-            m = w
-            n = rl
-            
-        rl+=0.002
-        
-    result = [n,Floor,m]
-    return result
-
+def BackTest_BuySignal(a,b,c,d):
+        if a <= b and c > d:
+            return 1
 
 def GetEntry():
     
@@ -770,116 +734,112 @@ class MyPair(object):
             if (self.ex == 0):
                 self.MaintainOrder()
             else:
+                self.PlotData()
                 print("Experiment Done")
      
         else:
             print("NOT READY TO TRADE")
             
-    
+            
+            
+            
+     
+    def BackTest(self,Floor,rl):
         
+        datalen = len(self.close)
         
+        coreresult = [] ##results from cores
+        
+        ##Get a list of Buy signals
+        Buy = []
+        
+        i = datalen - self.lp
+        while i <= datalen-2:
+            x = 0
+            while x <= 15:
+                coreresult.append(BackTest_BuySignal(self.CRMI[i+x], Floor, self.close[i+x], self.low[i+x+1], target=[x],async=True))
+                x +=1
+                
+            x = 0
+            while x <= 15:
+                Buy.append(coreresult[x].wait())
+                x+=1
+                
+            i+=1
+                
+        print(Buy)
+        
+        ##Now that we've got an array of buy signals, we process the returns per buy signals *possibly can be accellerated
+        y = 0
+        w = 0
+        while y <= len(Buy) - 1:
+            if (Buy[y]): ## a buy signal
+                z = y+1
+                while z <= datalen-2:
+                    if (self.close[y] * rl) < self.high[z+1]:
+                        r = 1
+                        break
+                    z+=1
+                if r > 0:
+                    w += rl
+                else:
+                    w = 0
+                    break
+            y+=1
+                
+        return w
+                
+              
+            
     def Optimise(self):
         
-        self.bestprofit = 0
-        
+        m = 0 
+        r = 0
         
         print(" ")
         print("...Optimizing Params, Figuring out what's the best for us....")
         print("")
         
-        OptimizeStartTime = datetime.datetime.now() 
+        StartTime = datetime.datetime.now()
         
-        datalen = len(self.close)
-        result = []
-        coreresult = []
-        params = [0, self.lp]
-    
-        
-         ##Limit the data       
-        close = []
-        high = []
-        low = []
-        crmi = []
-        
-        i = datalen-self.lp
-        while i <= datalen - 1:
-            close.append(self.close[i])
-            high.append(self.high[i])
-            low.append(self.low[i])
-            i+=1
-        
-        
-        IchtPeriod = 42
-        while (IchtPeriod > 4):
-            IchtPeriod = IchtPeriod - 2 
-            
+        IchtPeriod = 0
+        while IchtPeriod <= 36:
+            IchtPeriod += 4 
             self.GetIchT(IchtPeriod)
             self.GetCRMI()
             
-            #limit the CRMI
-            crmi *= 0
-            i = datalen-self.lp
-            while i <= datalen - 1:
-                crmi.append(self.CRMI[i])
-                i+=1
-            
-            Floor = max(self.CRMI)
+            rl = 1.006
+            while rl <= 1.098:
+                rl += 0.002 ##starting at 0.008
+                middle = statistics.median(self.CRMI)
+                Floor = min(self.CRMI)
                 
-            while (Floor >= min(self.CRMI)):
-                    
-                result *= 0
-                coreresult *= 0
-                
-                ##Get 16 different results
-                i = 0
-                while i <= 15: 
-                    params[0] = Floor
-                    coreresult.append(BackTest(close,high,low,crmi,params,target=[i], async=True)) ##process all 16 scenarios on 16 cores
-                    Floor = float(Floor - 0.01)
-                    i+=1
-                    #result.append(BackTest(close,high,low,crmi,params))
+                while Floor < middle:
+                    Floor += 0.005
+                    r = self.BackTest(Floor)
                         
-                i = 0
-                while i <= 15:
-                    result.append(coreresult[i].wait())
-                    i+=1
-                        
-                #print(result)
+                    print("Ichimoku Period at: %d Return Limit at: %.9f Floor at: %.9f ||||||||||") %(IchtPeriod, rl, Floor)
+                    print("returns: %d") %(r)
                     
-                i = 0
-                while i <= 15:      
-                    if (result[i][0][2] > self.bestprofit):       
-                        self.bestprofit = result[i][0][2]
-                        self.rl = result[i][0][0]
-                        self.BestFloor = result[i][0][1]
-                        self.IchtPeriod = IchtPeriod
+                    if (r > m):
+                        m = r
                         self.sl = 0.7
-                        print("")
-                        print("Best profit at %.9f with rl of: %.9f, floor: %.9f, Ichimoku: %d" ) % (self.bestprofit, result[i][0][0], result[i][0][1], IchtPeriod)
-                        print("")
-                    i+=1
-                            
-                           
-                        
-                        
-
-        hold = float((float(self.close[-1]) / float(self.close[len(self.close)-1-self.lp]) - 1.005) * 100)
+                        self.rl = rl
+                        self.BestFloor = Floor
+                        self.IchtPeriod = IchtPeriod
+                
+        
+        
+                          
         OptimizeFinishTime = datetime.datetime.now()
         
-        tdiff = OptimizeFinishTime - OptimizeStartTime 
+        tdiff = OptimizeFinishTime - StartTime 
         self.optimizeTime = int(tdiff.total_seconds())
         print("")
         print("")
         print("______________DONE___________________")
         print("")
         print("%d seconds for Optimizing") % (self.optimizeTime)
-        print("")
-        print("Total Best return = %.9f " % (self.bestprofit * 100))
-        print("If HOLD = %.9f ") % hold
-        print("")
-        
-        print("")
-        print("______________PARAMS___________________ ")
         print("")
         print("Stop Loss:  %.9f") % self.sl
         print("Return Limit:  %.9f") % self.rl
@@ -888,7 +848,7 @@ class MyPair(object):
         print("")
         
         
-        if (self.bestprofit > 0):
+        if (m > 0):
             self.ready = 1
             print("____READY TO TRADE NOW_____________")
             print("")
@@ -915,10 +875,7 @@ class MyPair(object):
             self.conn.rollback()
             self.conn.close()
             
-            
-    
-        
-        
+
                         
     def Trade(self):
         

@@ -10,56 +10,10 @@ import datetime
 import numpy as np
 #from pair import *
 from settings import *
+import statistics
 #from ta import *
 
 
-#def BackTest(close, low, high, CRMI, params):
-def BackTest(close,high,low,CRMI,params):
-    i = 0
-    w = 0.0
-    l = 0
-    rl = 1.008
-    m = 0.0
-    n = 0.0
-    r = 0
-    initial = 0.0
-    Floor = params[0]
-    lp = params[1]
-    while rl <= 1.1:
-        i = 0
-        w = 0
-        l = 0
-        while i <= lp - 2:
-            
-            if CRMI[i] <= Floor and close[i] > low[i+1]:
-                x = i+1
-                r = 0
-                initial = close[i]
-                while x <= lp-2:
-                    if (initial * rl) < high[x+1]:
-                        r = 1
-                        break
-                    x+=1
-                if r > 0:
-                    w += rl
-                else:
-                    l += 1
-            i+=1
-        #print("wins: %.9f, lossess: %d, rl: %.9f. floor: %.9f") %(w,l,rl,params[0])
-        if (l == 0 and w > m):
-            m = w
-            n = rl
-            #quit()
-            
-        rl+=0.002
-        
-    result = [n,Floor,m]
-    return result
-        
-    
-    
-    
-    
 
 def GetEntry():
     
@@ -775,102 +729,83 @@ class MyPair(object):
             if (self.ex == 0):
                 self.MaintainOrder()
             else:
-                #self.PlotData()
+                self.PlotData()
                 print("Experiment Done")
      
         else:
             print("NOT READY TO TRADE")
             
-    
-        
-        
+            
+            
+            
     def Optimise(self):
         
-        self.bestprofit = 0
-        
+        m = 0 
+        datalen = len(self.close)
         
         print(" ")
         print("...Optimizing Params, Figuring out what's the best for us....")
         print("")
         
-        OptimizeStartTime = datetime.datetime.now() 
+        StartTime = datetime.datetime.now()
         
-        datalen = len(self.close)
-        result = []
-        params = [0.0, self.lp]
-    
-        
-         ##Limit the data       
-        close = []
-        high = []
-        low = []
-        crmi = []
-        
-        i = datalen-self.lp
-        while i <= datalen - 1:
-            close.append(self.close[i])
-            high.append(self.high[i])
-            low.append(self.low[i])
-            i+=1
-
-        
-        IchtPeriod = 42
-        while (IchtPeriod > 4):
-            IchtPeriod = IchtPeriod - 2 
-            print("Ichimoku: %d") % (IchtPeriod)  
+        IchtPeriod = 0
+        while IchtPeriod <= 36:
+            IchtPeriod += 4 
             self.GetIchT(IchtPeriod)
             self.GetCRMI()
             
-            #limit the CRMI
-            crmi *= 0
-            i = datalen-self.lp
-            while i <= datalen - 1:
-                crmi.append(self.CRMI[i])
-                i+=1
-            
-            Floor = max(self.CRMI)
+            rl = 1.006
+            while rl <= 1.098:
+                rl += 0.002 ##starting at 0.008
+                middle = statistics.median(self.CRMI)
+                Floor = min(self.CRMI)
                 
-            while (Floor >= min(self.CRMI)):
-                Floor = float(Floor - 0.01)
-                params[0] = Floor
-                result = list(BackTest(close,high,low,crmi,params))
-                #result = list(self.BackTestE(Floor)) ##process all 16 scenarios on 16 cores
-                #result.append(BackTest(close,high,low,crmi,params))
-
-                #print(result)
-                  
-                if (result[2] > self.bestprofit):       
-                    self.bestprofit = result[2]
-                    self.sl = 0.7
-                    self.rl = result[0]
-                    self.BestFloor = result[1]
-                    self.IchtPeriod = IchtPeriod
-                    #self.rl = 1.010000000
-                    #self.BestFloor = 1.242570059
-                    #self.IchtPeriod = 10
-                    print("")
-                    print("Best profit at %.9f with rl of: %.9f, floor: %.9f, Ichimoku: %d" ) % (self.bestprofit, result[0], result[1], IchtPeriod)
-                    print("")
-                    
+                while Floor < middle:
+                    Floor += 0.005
+                    i = datalen-self.lp
+                    w = 0.0 ##wins
+                    l = 0 ##lossess
+                    x = 0 ##second position
+                    r = 0 ##return
+                    while i <= datalen-2:
+                        if self.CRMI[i] <= Floor and self.close[i] > self.low[i+1]:
+                            x = i + 1
+                            r = 0
+                            while x <= datalen-2:
+                                if (self.close[i] * rl) < self.high[x+1]:
+                                    r = 1
+                                    break
+                                x+=1
+                            if r > 0:
+                                w += rl
+                            else:
+                                l += 1
+                                break ##there's a loss stop, get new parameters
+                        i+=1
+                        
+                    print("Ichimoku Period at: %d Return Limit at: %.9f Floor at: %.9f ||||||||||") %(IchtPeriod, rl, Floor)
+                    print("wins: %d, loss: %d") %(w, l)
+                        
+                    if (l == 0 and w > m):
+                        m = w
+                        self.sl = 0.7
+                        self.rl = rl
+                        self.BestFloor = Floor
+                        self.IchtPeriod = IchtPeriod
                 
-                
-        hold = float((float(self.close[-1]) / float(self.close[len(self.close)-1-self.lp]) - 1.005) * 100)
+        
+        
+                          
         OptimizeFinishTime = datetime.datetime.now()
         
-        tdiff = OptimizeFinishTime - OptimizeStartTime 
+        tdiff = OptimizeFinishTime - StartTime 
         self.optimizeTime = int(tdiff.total_seconds())
         print("")
         print("")
         print("______________DONE___________________")
         print("")
         print("%d seconds for Optimizing") % (self.optimizeTime)
-        print("")
-        print("Total Best return = %.9f " % (self.bestprofit * 100))
-        print("If HOLD = %.9f ") % hold
-        print("")
-        
-        print("")
-        print("______________PARAMS___________________ ")
         print("")
         print("Stop Loss:  %.9f") % self.sl
         print("Return Limit:  %.9f") % self.rl
@@ -879,13 +814,15 @@ class MyPair(object):
         print("")
         
         
-        if (self.bestprofit > 0):
+        if (m > 0):
             self.ready = 1
             print("____READY TO TRADE NOW_____________")
             print("")
         else:
             self.ready = 0
-        
+            
+            
+    
             
             
     def UploadData(self):
@@ -904,107 +841,7 @@ class MyPair(object):
             self.conn.rollback()
             self.conn.close()
             
-            
-    def PlotData(self):
-        
-        import matplotlib.pyplot as plt
-        
-        CRMI = []
-        timeD = []
-        close = []
-        
-        BuyOrder = []
-        BuyTime = []
-        SellOrder = []  
-        SellTime = []
-        BuySignals = []
-        BuySignalsTime = []
-        
-        
-                    
-        datalength = len(self.close)
-                    
 
-        print("")
-        print("Ploting.....")
-        i = datalength-self.lp
-        r = 0
-        w = 0
-        l = 0
-        
-        
-        while i <= datalength-2:
-            if self.CRMI[i] <= self.BestFloor and self.close[i] > self.low[i+1]:
-                x = i+1
-                BuyOrder.append(self.close[i])
-                BuyTime.append(self.time[x])
-                while x <=datalength-2:
-                    if (self.close[i] * self.rl) < self.high[x+1]:
-                        r = 1
-                        SellOrder.append(self.close[i]*self.rl)
-                        SellTime.append(self.time[x])
-                        break
-                    x+=1
-                if r > 0:
-                    w+= 1
-                else:
-                    l+= 1
-            i+=1
-            
-        print(w)
-        print(l)
-        
-     
-            
-        i = datalength-self.lp
-        while i<=datalength-1:
-            close.append(self.close[i])
-            CRMI.append(self.CRMI[i])
-            timeD.append(self.time[i])
-            i+=1
-            
-                    
-        
-        #plt.plot(self.time, self.close, label='Closing Price',color='black', linewidth=0.1)
-        plt.figure(1)
-        
-        plt.subplot(211)
-        plt.plot(BuyTime, BuyOrder, '^', markersize=7, color='g', label = 'Bought')
-        plt.plot(SellTime, SellOrder, 'v', markersize=7, color='r', label = 'Sold')
-        plt.plot(BuySignalsTime, BuySignals, '^', markersize=3, color='blue', label ='Buy Signal')
-        plt.plot(timeD, close, label='Close',color='black',linewidth=0.3)
-        
-        
-       # plt.plot(timeD, SMA, color = 'red', label='SMA')
-       # plt.plot(timeD, kijunSen, color = 'blue', label='kijunSen')
-        
-        plt.title(self.pairName)
-        plt.ylabel('price')
-        plt.xlabel('period')
-        
-        
- 
-        plt.legend(loc=0)
-
-        plt.subplot(212)
-        #plt.plot(timeD, IchD, color = 'red', label='ICHD')
-        plt.plot(timeD, CRMI, color = 'red', label='Difference')
-        #plt.plot(timeD, SMAIchDSMA, color = 'blue', label='SMA')
-        plt.title("Custom Relative Momentum Indicator")
-        plt.xlabel('period')
-        
-        #plt.subplot(313)
-        #plt.plot(timeD, RollingFib, color = 'blue')
-        #plt.title("Fib Retracement Level")
-        #plt.xlabel('period')
-        
-        
-        plt.show()
-            
-            
-    
-        
-        
                         
     def Trade(self):
         
