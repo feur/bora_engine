@@ -12,26 +12,36 @@ import numpy as np
 from settings import *
 import statistics
 #from ta import *
-from epython import offload
+from epython import *
 
 
 @offload
-def BackTest_BuySignal(x,y,z,p):
+def BackTest(Floor):
     
-    a = x
-    b = y
-    c = z
-    d = p
-    
-    print(a)
-    print(b)
-    print(c)
-    print(d)
-    
-    if a <= b and c > d:
-        return 1
-    else:
-        return 0
+    datalen = len(close)
+    i = 0
+    x = 0
+    r = 0
+    f = Floor + (coreid() * 0.005) 
+    while i <= datalen-3:
+        if crmi[i] <= f and close[i] > low[i+1]:
+            x = i + 1
+            r = 0
+            while x <= datalen-3:
+                if (close[i] * rl) < high[x+1]:
+                    r = 1
+                    x = datalen-3
+                x+=1
+            if r > 0:
+                w += rl
+            else:
+                w = 0
+                i =  datalen-3 
+        i+=1
+ 
+
+
+
 
 def GetEntry():
     
@@ -161,6 +171,20 @@ class MyPair(object):
         self.rl = 0
         
         self.state = 0
+        
+        ##For Epiphany
+        c = [0]*1400
+        o = [0]*1400
+        l = [0]*1400
+        crmi = [0]*1400
+        
+        w = 0
+
+        define_on_device(c)
+        define_on_device(o)
+        define_on_device(l)
+        define_on_device(crmi)
+        define_on_device(w)
         
         
         
@@ -752,61 +776,13 @@ class MyPair(object):
         else:
             print("NOT READY TO TRADE")
             
-            
-            
-            
-     
-    def BackTest(self,Floor,rl):
+    
         
-        datalen = len(self.close)
         
-        coreresult = [] ##results from cores
-        
-        ##Get a list of Buy signals
-        Buy = []
-        
-        i = datalen - self.lp
-        while i <= datalen-1:
-            x = 0
-            while x <= 15 and i+x <= datalen-2:
-                coreresult.append(BackTest_BuySignal(self.CRMI[i+x], Floor, self.close[i+x], self.low[i+x+1], target=[x],async=True))
-                x +=1
-                
-            o = 0
-            while o <= len(coreresult):
-                Buy.append(coreresult[o].wait())
-                o+=1
-                
-            i+=1
-                
-        #print(Buy)
-        
-        ##Now that we've got an array of buy signals, we process the returns per buy signals *possibly can be accellerated
-        y = 0
-        w = 0
-        while y <= len(Buy) - 1:
-            if (Buy[y][0] == 1): ## a buy signal
-                z = y+1
-                while z <= datalen-2:
-                    if (self.close[y] * rl) < self.high[z+1]:
-                        r = 1
-                        break
-                    z+=1
-                if r > 0:
-                    w += rl
-                else:
-                    w = 0
-                    break
-            y+=1
-                
-        return w
-                
-              
-            
     def Optimise(self):
         
         m = 0 
-        r = 0
+        w = 0
         
         print(" ")
         print("...Optimizing Params, Figuring out what's the best for us....")
@@ -814,11 +790,20 @@ class MyPair(object):
         
         StartTime = datetime.datetime.now()
         
+        ##send  all the data over
+        h1 = copy_to_device("c",self.close,async=True, target=range(16))
+        h2 = copy_to_device("o",self.open,async=True, target=range(16))
+        h3 = copy_to_device("l",self.low,async=True, target=range(16))
+
+        
         IchtPeriod = 0
         while IchtPeriod <= 36:
             IchtPeriod += 4 
             self.GetIchT(IchtPeriod)
             self.GetCRMI()
+            
+            h4 = copy_to_device("crmi",self.CRMI,async=True, target=range(16)) ##copy over new crmi
+            waitAll(h1,h2,h3,h4) #wait for data transfer to finish
             
             rl = 1.006
             while rl <= 1.098:
@@ -828,13 +813,17 @@ class MyPair(object):
                 
                 while Floor < middle:
                     Floor += 0.005
-                    r = self.BackTest(Floor,rl)
+                    r = BackTest(Floor)
+                    r.wait()
+                    
+                    for i in range (15):
+                        print copy_from_device("w", target=range(16))
                         
                     print("Ichimoku Period at: %d Return Limit at: %.9f Floor at: %.9f ||||||||||") %(IchtPeriod, rl, Floor)
-                    print("returns: %d") %(r)
-                    
-                    if (r > m):
-                        m = r
+                    print("wins: %d, loss: %d") %(w, l)
+                        
+                    if (w > m):
+                        m = w
                         self.sl = 0.7
                         self.rl = rl
                         self.BestFloor = Floor
@@ -887,7 +876,10 @@ class MyPair(object):
             self.conn.rollback()
             self.conn.close()
             
-
+            
+    
+        
+        
                         
     def Trade(self):
         
