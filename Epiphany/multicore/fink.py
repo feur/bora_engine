@@ -16,9 +16,17 @@ from epython import offload
 
 
 @offload
-def BackTest_BuySignal(a,b,c,d):
-        if a <= b and c > d:
-            return 1
+def BackTest_BuySignal(x,y,z,p):
+    
+    a = x
+    b = y
+    c = z
+    d = p
+    
+    if a <= b and c > d:
+        return 1
+    else:
+        return 0
 
 def GetEntry():
     
@@ -734,7 +742,6 @@ class MyPair(object):
             if (self.ex == 0):
                 self.MaintainOrder()
             else:
-                self.PlotData()
                 print("Experiment Done")
      
         else:
@@ -754,16 +761,16 @@ class MyPair(object):
         Buy = []
         
         i = datalen - self.lp
-        while i <= datalen-2:
+        while i <= datalen-1:
             x = 0
-            while x <= 15:
+            while x <= 15 and i+x <= datalen-1:
                 coreresult.append(BackTest_BuySignal(self.CRMI[i+x], Floor, self.close[i+x], self.low[i+x+1], target=[x],async=True))
                 x +=1
                 
-            x = 0
-            while x <= 15:
+            o = 0
+            while o <= x-1:
                 Buy.append(coreresult[x].wait())
-                x+=1
+                o+=1
                 
             i+=1
                 
