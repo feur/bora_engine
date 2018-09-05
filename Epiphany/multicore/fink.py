@@ -12,7 +12,7 @@ import numpy as np
 from settings import *
 import statistics
 #from ta import *
-from epython import *
+from epython import offload, define_on_device, copy_to_device, waitAll, coreid
 
 
 @offload
