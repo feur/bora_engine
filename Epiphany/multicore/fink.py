@@ -78,13 +78,13 @@ def GetEntry():
 entry = GetEntry() 
 
 
-lp = int(entry.lp)
+#lp = int(entry.lp)
 
 ##For Epiphany
-c=[0]*lp
-h=[0]*lp
-l=[0]*lp
-crmi=[0]*lp
+c=[0]*240
+h=[0]*240
+l=[0]*240
+crmi=[0]*240
         
 w=0.0
 rl=0.0
@@ -99,7 +99,6 @@ define_on_device(rl)
 
 @offload
 def BackTest(Floor):
-    
     datalen = len(c)
     i = 0
     x = 0
@@ -787,13 +786,16 @@ class MyPair(object):
     def Optimise(self):
         
         m = 0 
-        w = 0
+        w = []
         
         ##Limit the data       
         close = []
         high = []
         low = []
         crmi = []
+        
+        
+        datalen = len(self.close)
         
         print(" ")
         print("...Optimizing Params, Figuring out what's the best for us....")
@@ -809,9 +811,9 @@ class MyPair(object):
             i+=1
         
         ##send  all the data over
-        h1 = copy_to_device("c",close,async=True, target=range(16))
-        h2 = copy_to_device("h",high,async=True, target=range(16))
-        h3 = copy_to_device("l",low,async=True, target=range(16))
+        copy_to_device("c",close)
+        copy_to_device("l",low)
+        copy_to_device("h",high)
 
         
         IchtPeriod = 0
@@ -827,41 +829,37 @@ class MyPair(object):
                 crmi.append(self.CRMI[i])
                 i+=1
             
-            h4 = copy_to_device("crmi",crmi,async=True, target=range(16)) ##copy over new crmi
-            waitAll(h1,h2,h3,h4) #wait for data transfer to finish
-            print("Copied")
+            copy_to_device("crmi",crmi)
             
             rl = 1.006
             while rl <= 1.098:
                 rl += 0.002 ##starting at 0.008\
                 
-                h5 = copy_to_device("rl",rl,async=True, target=range(16)) ##copy over new rl
-                h5.wait
+                copy_to_device("rl",rl)
                 
-                middle = statistics.median(self.CRMI)
-                Floor = min(self.CRMI)
+                middle = statistics.median(crmi)
+                Floor = min(crmi)
                 
                 while Floor < middle:
-                    Floor += 0.005
+                    print("Ichimoku Period at: %d Return Limit at: %.9f Floor at: %.9f ||||||||||") %(IchtPeriod, rl, Floor)
+                    w *= 0
                     r = BackTest(Floor)
                     r.wait()
                     
-                    for i in range (15):
-                        print copy_from_device("w", target=range(16))
+                    w = list(copy_from_device("w", target=range(16)))
+                    print(w)
+                    
+                    i = 0
+                    while i <= 15:
+                        if (w[i] > m):
+                            m = w[i]
+                            self.sl = 0.7
+                            self.rl = rl
+                            self.BestFloor = float(Floor + (0.005 * i))
+                            
+                    Floor = Floor + 0.075
                         
-                    print("Ichimoku Period at: %d Return Limit at: %.9f Floor at: %.9f ||||||||||") %(IchtPeriod, rl, Floor)
-                    print("wins: %d, loss: %d") %(w, l)
-                        
-                    if (w > m):
-                        m = w
-                        self.sl = 0.7
-                        self.rl = rl
-                        self.BestFloor = Floor
-                        self.IchtPeriod = IchtPeriod
-                
-        
-        
-                          
+               
         OptimizeFinishTime = datetime.datetime.now()
         
         tdiff = OptimizeFinishTime - StartTime 
