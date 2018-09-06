@@ -12,7 +12,28 @@ import numpy as np
 from settings import *
 import statistics
 #from ta import *
-from epython import offload, define_on_device, copy_to_device, waitAll, coreid
+from epython import *
+
+
+
+def InitEpiphany():
+    
+    ##For Epiphany
+    c = [0]*1400
+    o = [0]*1400
+    l = [0]*1400
+    crmi = [0]*1400
+        
+    w = 0
+    rl = 0
+    define_on_device(c)
+    define_on_device(o)
+    define_on_device(l)
+    define_on_device(crmi)
+    define_on_device(w)
+    define_on_device(rl)
+        
+    
 
 
 @offload
@@ -24,11 +45,11 @@ def BackTest(Floor):
     r = 0
     f = Floor + (coreid() * 0.005) 
     while i <= datalen-3:
-        if crmi[i] <= f and close[i] > low[i+1]:
+        if crmi[i] <= f and c[i] > l[i+1]:
             x = i + 1
             r = 0
             while x <= datalen-3:
-                if (close[i] * rl) < high[x+1]:
+                if (c[i] * rl) < h[x+1]:
                     r = 1
                     x = datalen-3
                 x+=1
@@ -172,19 +193,6 @@ class MyPair(object):
         
         self.state = 0
         
-        ##For Epiphany
-        c = [0]*1400
-        o = [0]*1400
-        l = [0]*1400
-        crmi = [0]*1400
-        
-        w = 0
-
-        define_on_device(c)
-        define_on_device(o)
-        define_on_device(l)
-        define_on_device(crmi)
-        define_on_device(w)
         
         
         
@@ -807,7 +815,9 @@ class MyPair(object):
             
             rl = 1.006
             while rl <= 1.098:
-                rl += 0.002 ##starting at 0.008
+                rl += 0.002 ##starting at 0.008\
+                h5 = copy_to_device("rl",rl,async=True, target=range(16)) ##copy over new rl
+                h5.wait
                 middle = statistics.median(self.CRMI)
                 Floor = min(self.CRMI)
                 
@@ -915,6 +925,7 @@ class MyPair(object):
        
     
 entry = GetEntry() 
+InitEpiphany()
 pair = MyPair(entry)
 pair.SetParams(entry)
 
