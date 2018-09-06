@@ -15,19 +15,6 @@ import statistics
 from epython import *
 
 
-
-
-    
-
-    
-
-
-
-    
-
-
-
-
 def GetEntry():
     
     parser = argparse.ArgumentParser(description='Agent trading for pair')
@@ -89,7 +76,7 @@ def GetEntry():
 
 
 entry = GetEntry() 
-pair = MyPair(entry)
+
 
 lp = int(entry.lp)
 
@@ -957,7 +944,7 @@ class MyPair(object):
         
        
     
-
+pair = MyPair(entry)
 pair.SetParams(entry)
         
 
