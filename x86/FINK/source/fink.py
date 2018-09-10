@@ -975,7 +975,8 @@ else:
 
     while(True):
         pair.Trade()
-        time.sleep(50) ## should be enough delay to not throttle the api
+        if (pair.Order < 2):
+            time.sleep(50) ## should be enough delay to not throttle the api when checking orders
 
 
 
