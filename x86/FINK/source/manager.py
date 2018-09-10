@@ -103,7 +103,6 @@ class Account(object):
             
         print("System ID of %d") % self.id
         print("Buy limit set to: %.9f") % float(entry.limit)
-        print("Look Back set to: %.9f") % float(entry.lp)
         print("Trading interval set to: %d") % int(entry.time)
         
         print("Database set to %s") % self.ip
@@ -215,7 +214,7 @@ class Account(object):
                 print("agent for %s is still running with pid %s" % (pair, data[0]))
             else:
                 print("Agent with PID: %s is not running, re-running agent for this pair %s" % (data[0],pair))
-                agent = subprocess.call("python ~/Fink/source/fink.py " + " -p " + pair + " -c " + currency + " -k " + entry.api + " -s " + entry.secret + " -u " + entry.uid + " -t "
+                agent = subprocess.call("~/Fink/source/fink/fink " + " -p " + pair + " -c " + currency + " -k " + entry.api + " -s " + entry.secret + " -u " + entry.uid + " -t "
                 + entry.time + " -l " + entry.limit  + " -st " + entry.st  + " -ex " + entry.ex +  " -ip " + entry.ip
                 + " > /dev/null 2>&1 & ",  shell=True)
                 
