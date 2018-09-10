@@ -646,12 +646,12 @@ class MyPair(object):
         """ Just Reset Everything """
         
         self.SMA *= 0
-        #self.GetBalance()
+        self.GetBalance()
         self.GetSMA()
             
-        #print("Balance: %.9f" % (self.balance))
-        #print("**************************************")
-        #print(" ")
+        print("Balance: %.9f" % (self.balance))
+        print("**************************************")
+        print(" ")
         self.hold = 0
 
         if ((self.hold == 0 and self.Order == 2) or self.rl == 0):
