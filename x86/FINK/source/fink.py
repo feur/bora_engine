@@ -732,18 +732,16 @@ class MyPair(object):
             IchtPeriod += IchtPeriodSteps 
             self.GetIchT(IchtPeriod)
             self.GetCRMI()
-            
+            middle = statistics.median(self.CRMI)
+            minFloor = min(self.CRMI)
             #rl = 1.006
             rl = 1.00
-            while rl < 1.50:
+            while rl < 1.10:
                 rl += 0.025 ##starting at 0.008
-                middle = statistics.median(self.CRMI)
-                Floor = min(self.CRMI)
-                
                 sl = 0.7
                 while sl < 0.99:
-                    sl += 0.02 
-                
+                    sl += 0.02
+                    Floor = minFloor
                     while Floor < middle:
                         Floor += 0.01
                         i = datalen-self.lp
@@ -770,7 +768,7 @@ class MyPair(object):
                                     break ##there's a loss stop, get new parameters
                             i+=1
                         
-                        print("Ichimoku Period at: %d Stop Loss: %.9f Return Limit at: %.9f Floor at: %.9f ||||||||||") %(IchtPeriod, sl, rl, Floor)
+                        print("Ichimoku Period at: %d Stop Loss: %.2f Return Limit at: %.2f Floor at: %.9f ||||||||||") %(IchtPeriod, sl, rl, Floor)
                         print("wins: %d, loss: %d") %(w, l)
                         
                         if (l == 0 and w > m):
