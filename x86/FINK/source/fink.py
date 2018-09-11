@@ -187,6 +187,10 @@ class MyPair(object):
             self.TimeInterval = "HOUR"
             self.TimeIntervalINT = 60
             print("Time interval set to 60 min")
+        elif (int(entry.time)  == 1440): 
+            self.TimeInterval = "DAY"
+            self.TimeIntervalINT = 1440
+            print("Time interval set to 1 Day")
         else:
             self.TimeInterval = "HOUR"
             self.TimeIntervalINT = 60
@@ -313,6 +317,8 @@ class MyPair(object):
                 result = self.client.get_historical_klines(BinancePair, Client.KLINE_INTERVAL_30MINUTE, "1 Jan, 2018")
             elif (self.TimeIntervalINT == 60):
                 result = self.client.get_historical_klines(BinancePair, Client.KLINE_INTERVAL_1HOUR, "1 Jan, 2018")
+            elif (self.TimeIntervalINT == 1440):
+                result = self.client.get_historical_klines(BinancePair, Client.KLINE_INTERVAL_1DAY, "1 Jan, 2017")
                 
             #print(result)
             self.SortData(result)
@@ -332,7 +338,7 @@ class MyPair(object):
          print("Done")
          print("")
          
-         if self.TimeIntervalINT == 60:
+         if self.TimeIntervalINT == 60 or self.TimeIntervalINT == 1440:
              self.lp = len(self.close) - 40
          elif self.TimeIntervalINT == 30:
              self.lp = len(self.close) - 80
@@ -713,6 +719,9 @@ class MyPair(object):
         elif self.TimeIntervalINT == 1:
             IchtPeriodMax = 2160
             IchtPeriodSteps = 240
+        elif self.TimeIntervalINT == 1440:
+            IchtPeriodMax = 36
+            IchtPeriodSteps = 4
         
         IchtPeriod = 0
         while IchtPeriod <= IchtPeriodMax:
@@ -721,9 +730,9 @@ class MyPair(object):
             self.GetCRMI()
             
             #rl = 1.006
-            rl = 1.018
-            while rl < 1.02:
-                rl += 0.002 ##starting at 0.008
+            rl = 1.00
+            while rl < 2:
+                rl += 0.02 ##starting at 0.008
                 middle = statistics.median(self.CRMI)
                 Floor = min(self.CRMI)
                 
