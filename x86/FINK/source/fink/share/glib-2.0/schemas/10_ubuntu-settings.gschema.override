@@ -174,7 +174,6 @@ screensaver = '<Control><Alt>l'
 cursor-theme = "communitheme"
 icon-theme = "Suru"
 gtk-theme = "Communitheme"
-font-name = "Ubuntu 10"
 
 [org.gnome.desktop.sound:communitheme]
 theme-name = "communitheme"
