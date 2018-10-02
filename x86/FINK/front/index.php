@@ -113,30 +113,46 @@ img {
 
 }
 
-.row-buy{
-  color:#00B7CF;
+.row-action{
+  color:#003399;
   font-size:90%;
 
 }
 
-.row-sell{
-  color:#FF5615;
-  font-size:90%;
-}
 
 
-
-
-.Watch{
-  color:#FF5615;
+.PositionA{
+  color:#33cc33;
   font-size:100%;
 
 }
 
-.NoWatch{
-  color:#1B329E;
+.PositionB{
+  color:#66ccff;
   font-size:100%;
 }
+    
+    
+.PositionC{
+  color:#0033cc;
+  font-size:100%;
+}
+    
+.PositionD{
+  color:#ff9900;
+  font-size:100%;
+}
+    
+.PositionE{
+  color:#ff5050;
+  font-size:100%;
+}
+    
+.PositionF{
+  color:#cc3300;
+  font-size:100%;
+}
+    
 
 .trendcontainer {
   position: absolute;
@@ -185,26 +201,47 @@ img {
 
 $fink=mysqli_connect("localhost","fink","Amm02o16!","Fink");
 
+
 // Check connection
 if (mysqli_connect_errno())
 {
 echo "Failed to connect to MySQL: " . mysqli_connect_error();
 }
 
-$result = mysqli_query($fink,"SELECT `Pair`, `TradeSignal`, `HoldBTC` FROM `Pairs` WHERE HoldBTC > 0.0005 ORDER BY HoldBTC DESC");
+$result = mysqli_query($fink,"SELECT `Pair`, `Position`, StopLoss, `ReturnLimit`,`HoldBTC` FROM `Pairs` WHERE HoldBTC > 0.0005 ORDER BY HoldBTC DESC");
 
 
 while($row = mysqli_fetch_array($result))
 {
+    
+$r = $row['Position'] / $row['ReturnLimit'];
 
-if ($row['TradeSignal'] == 1)
+if ($row['Position'] >= 1 && $r >= 0.9)
 {
-  $rowClass = "Watch";
+  $rowClass = "PositionA";
 }
-else
+elseif ($row['Position'] >= 1 && $r < 0.8 && $r >= 0.8)
 {
-  $rowClass = "NoWatch";
+  $rowClass = "PositionB";
 }
+elseif ($row['Position'] >= 1 && $r < 0.4)
+{
+  $rowClass = "PositionC";
+}
+elseif ($row['Position'] < 1 && $row['StopLoss'] >= 1.5)
+{
+  $rowClass = "PositionD";
+}
+elseif ($row['Position'] < 1 &&  $row['StopLoss'] < 1.5 && $row['StopLoss'] >= 1.1)
+{
+  $rowClass = "PositionE";
+}
+elseif ($row['Position'] < 1 && $row['StopLoss'] < 1.1)
+{
+  $rowClass = "PositionF";
+}
+    
+    
 
 echo "<tr class='".$rowClass."'>";
 
@@ -268,21 +305,13 @@ while($row = mysqli_fetch_array($result))
 
 $ReturnBTC = $row['Amount'] * $row['Price'];
 
-if ($row['Action'] == "BUY")
-{
-  $rowClass = "row-buy";
-}
-else
-{
-  $rowClass = "row-sell";
-}
 
-echo "<tr class='".$rowClass."'>";
+echo "<tr class= row-action '>";
 
 echo "<td class='actionrow'>" . $row['Pair'] . "</td>";
 echo "<td class='actionrow'>" . $row['Action'] . "</td>";
-echo "<td class='actionrow'>" . $row['Price'] . "</td>";
 echo "<td class='actionrow'>" . $ReturnBTC . "</td>";
+echo "<td class='actionrow'>" . $row['Price'] . "</td>";
 echo "<td class='actionrow'>" . $row['ActionTime'] . "</td>";
 echo "</tr>";
 }
@@ -323,23 +352,38 @@ if (mysqli_connect_errno())
 echo "Failed to connect to MySQL: " . mysqli_connect_error();
 }
 
-$result = mysqli_query($fink,"SELECT `Pair`, `BuyPrice`, `SellPrice` FROM `SignalLog` order by Time desc limit 10");
+$result = mysqli_query($fink,"SELECT `Pair`, `Entry` FROM `Pairs` WHERE TradeSignal = 1 ORDER BY Entry asc limit 10");
 
 
 
 while($row = mysqli_fetch_array($result))
 {
-
-$ReturnBTC = $row['Amount'] * $row['Price'];
-
-if ($row['Action'] == "BUY")
+    
+if ($row['Entry'] < 0.9 && $row['Entry'] >= 0.8)
 {
-  $rowClass = "row-buy";
+  $rowClass = "PositionA";
 }
-else
+elseif ($row['Entry'] < 1 && $row['Entry'] >= 0.9)
 {
-  $rowClass = "row-sell";
+  $rowClass = "PositionB";
 }
+elseif ($row['Entry'] < 1.01 && $row['Entry'] >= 1)
+{
+  $rowClass = "PositionC";
+}
+elseif ($row['Entry'] < 1.05 && $row['Entry'] >= 1.01)
+{
+  $rowClass = "PositionD";
+}
+elseif ($row['Entry'] < 1.1 && $row['Entry'] >= 1.05)
+{
+  $rowClass = "PositionE";
+}
+elseif ($row['Entry'] >= 1.1)
+{
+  $rowClass = "PositionF";
+}
+    
 
 echo "<tr class='".$rowClass."'>";
 
@@ -363,3 +407,4 @@ mysqli_close($fink);
 
 </body>
 </html>
+

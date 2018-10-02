@@ -1,11 +1,5 @@
 #!/bin/bash
 
-cd bora/
-git fetch
-git pull
-
-cd
-
-rm -rf Fink
-cp -a bora/Epiphany/FINK/ Fink/
+rm -rf /var/www/html/fink
+cp -a bora/Front_Interface /var/www/html/fink
 
