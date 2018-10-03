@@ -199,7 +199,7 @@ img {
 
 <?php
 
-$fink=mysqli_connect("localhost","fink","Amm02o16!","Fink");
+$fink=mysqli_connect("206.189.209.201","fink","Amm02o16!","Fink");
 
 
 // Check connection
@@ -215,6 +215,7 @@ while($row = mysqli_fetch_array($result))
 {
     
 $r = $row['Position'] / $row['ReturnLimit'];
+$s = ($row['Position'] - $row['StopLoss']) * 100;
 
 if ($row['Position'] >= 1 && $r >= 0.9)
 {
@@ -228,15 +229,15 @@ elseif ($row['Position'] >= 1 && $r < 0.4)
 {
   $rowClass = "PositionC";
 }
-elseif ($row['Position'] < 1 && $row['StopLoss'] >= 1.5)
+elseif ($row['Position'] < 1 && $s > 10)
 {
   $rowClass = "PositionD";
 }
-elseif ($row['Position'] < 1 &&  $row['StopLoss'] < 1.5 && $row['StopLoss'] >= 1.1)
+elseif ($row['Position'] < 1 &&  $s <= 10 && $s >= 5)
 {
   $rowClass = "PositionE";
 }
-elseif ($row['Position'] < 1 && $row['StopLoss'] < 1.1)
+elseif ($row['Position'] < 1 && $s < 5)
 {
   $rowClass = "PositionF";
 }
