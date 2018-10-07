@@ -1,7 +1,6 @@
 import time
 import os
 import MySQLdb
-import time
 import datetime
 
 from coinmarketcap import Market
@@ -16,22 +15,39 @@ class CoinMarket(object):
         
         self.db = MySQLdb.connect("138.197.194.3","Morph","O3bh8gEtZBGsEhxR","CoinCap") ##connect to DB
         self.market = Market()
+        self.coins = []
+        
+        
+    def GetCoinList(self):
+        
+        cursor = self.db.cursor()
+        query = "SELECT Coin FROM `Coinlist` WHERE 1" 
+
+        try:
+            cursor.execute(query)
+            data = cursor.fetchall()   
+            
+            for i in range(len(data)):
+                self.coins.append(str(data[i][0]))
+       
+        except MySQLdb.Error as error:
+            print(error)
+            self.db.conn.close()    
+
         
     def GetCoinSignal(self):
-        ##get listings 
-        x = self.market.listings()
-
+        
         ##So far we're just logging movement...
-        for data in x['data']:
-            position = self.GetZoneMovement(data["symbol"])
+        for coin in self.coins:
+            position = self.GetZoneMovement(coin)
             if (position[0] > position[1]): ##pair has moved up
-                print("Symbol: %s has moved up") % data["symbol"]
-                self.LogMovementSignal(data["symbol"],position[0],"up")
+                print("Symbol: %s has moved up") % coin
+                self.LogMovementSignal(coin,position[0],"up")
             elif (position[0] < position[1]): ##pair has moved down
-                self.LogMovementSignal(data["symbol"],position[0],"down")
-                print("Symbol: %s has moved down") % data["symbol"]
+                self.LogMovementSignal(coin,position[0],"down")
+                print("Symbol: %s has moved down") % coin
             else:
-                print("Symbol: %s no movement") % data["symbol"]
+                print("Symbol: %s no movement") % coin
         
         time.sleep(3600) ##wait for 1 hour
         
@@ -72,7 +88,11 @@ class CoinMarket(object):
     
         
 coinmarketcap = CoinMarket()
-coinmarketcap.GetCoinSignal()
+coinmarketcap.GetCoinList()
+
+while (True):
+    time.sleep(3600) ##wait till we get a proper list of coins first
+    coinmarketcap.GetCoinSignal()
 
 
 
