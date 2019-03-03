@@ -131,23 +131,11 @@ class trading_account(object):
         print("")
         print("Rebuilding State..... for Symbol ", self.symbol)
         self.get_ticker()
-        if self.get_balance():
-            print("")
-            print("Current Closing price: ", self.ticker_close, self.base)
-            print("Unit balance: ", self.balance_unit, "..... ", self.balance_base, self.base)
-            print("")
-            print("there is some balance left.....checking if backorder file exist")
-            if os.path.isfile(self.csv_title):
+        if os.path.isfile(self.csv_title):
                 print("backorder file exist.....re-building backorders")
                 self.reconstruct_backlog()
                 print("Backorder reconstructed.....")
-                    
-                
-            else:
-                print("no backorder exist....will need to purge balance")
-        else:
-            print("balance is empty....fresh start!")
-        
+          
         
         
     def get_ticker(self):
@@ -160,11 +148,12 @@ class trading_account(object):
                 data = self.data_source.get_symbol_ticker(symbol=self.symbol)
                 if (data != 0):
                     self.ticker_close = float(data['price'])
-                    break
-            except:            
+                    return 1
+            except BinanceAPIException as e:           
                 print("can't get data... retrying ...")
-                exit()
-                pass
+                print (e.status_code)
+                print (e.message)
+                
                 
         
         
@@ -195,8 +184,7 @@ class trading_account(object):
                 print (e.status_code)
                 print (e.message)
                
-                
-        
+            
         return 1
     
     
@@ -240,10 +228,6 @@ class trading_account(object):
                 print (e.status_code)
                 print (e.message)
             
-            
-     
-    
-        
             
             
     def update_backlog_file(self):
@@ -289,12 +273,6 @@ class trading_account(object):
         csv_row += str(sell_price) + ","
         csv_row += str(now) +"\n"
         
-        #csv_row = str(self.ticker_close) + ","      
-        #csv_row += str(self.total_base_balance) + ","
-        #csv_row += str(self.balance_base_holding) + ","
-        #csv_row += str(self.balance_base) + ","
-        #csv_row += str(self.balance_unit) + ","
-        
         f.write(csv_row) 
         f.close()
         
@@ -310,7 +288,6 @@ class trading_account(object):
                 except BinanceAPIException as e:
                     print(e)
                     print("Order UID is invalid....")
-                    #return 0
             else:
                 print("Order UID is invalid.....")
                 return 0
@@ -385,7 +362,7 @@ class trading_account(object):
             return 1
                     
         except BinanceAPIException as e:
-            print("ERROR: ")
+            print("BUY ORDER ERROR: ")
             print (e.status_code)
             print (e.message)
             print("")
@@ -415,7 +392,7 @@ class trading_account(object):
             return 1
         
         except BinanceAPIException as e:
-            print("ERROR: ")
+            print("SELL ORDER ERROR: ")
             print (e.status_code)
             print (e.message)
             print("")
@@ -466,11 +443,17 @@ class trading_account(object):
         
 
         while True:
-            data = self.data_source.get_order_book(symbol=self.symbol)
-            if data != 0:
+            try:
+                data = self.data_source.get_order_book(symbol=self.symbol)
                 ask = data['asks'] ##sell orders
                 bid = data['bids'] ##buy orders
                 break
+            except BinanceAPIException as e:
+                print("ORDERBOOK ERROR: ")
+                print (e.status_code)
+                print (e.message)
+                print("")
+                
             
         b_sum = 0
         b_pos = 0 
@@ -498,9 +481,6 @@ class trading_account(object):
         print("Order Book Spread: ",self.book_spread)
         
         
-    
-
-            
             
     def Optimise(self,entry,rl,sl):
         
