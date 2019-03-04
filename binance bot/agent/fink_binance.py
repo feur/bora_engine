@@ -130,7 +130,6 @@ class trading_account(object):
     def rebuild_state(self):
         print("")
         print("Rebuilding State..... for Symbol ", self.symbol)
-        self.get_ticker()
         if os.path.isfile(self.csv_title):
                 print("backorder file exist.....re-building backorders")
                 self.reconstruct_backlog()
@@ -153,6 +152,7 @@ class trading_account(object):
                 print("can't get data... retrying ...")
                 print (e.status_code)
                 print (e.message)
+                time.sleep(70)
                 
                 
         
@@ -183,6 +183,7 @@ class trading_account(object):
                 print ("Unable to get K line... retrying...")
                 print (e.status_code)
                 print (e.message)
+                time.sleep(70)
                
             
         return 1
@@ -276,6 +277,23 @@ class trading_account(object):
         f.write(csv_row) 
         f.close()
         
+     ##incomplete    
+    def reconstruct_backlog(self):
+        
+        import csv
+        with open(self.csv_title,'r') as backlogFile:
+            reader = csv.reader(backlogFile)
+            for row in reader:
+                block = Block(row[0],row[1],row[2],row[3],row[4],row[5],row[6],row[7])
+                self.back_orders.append(block)
+        
+        if self.back_orders[-1].sell_uid == 0:
+            if self.GetOrderProperties(self.back_orders[-1].buy_uid)['status'] == 'NEW':
+                self.CancelOrder(self.back_orders[-1].buy_uid) ##cancel order
+                self.remove_last_backlog() ##remove it
+        
+        return 1
+        
         
         
 
@@ -321,17 +339,7 @@ class trading_account(object):
         
     
         
-    ##incomplete    
-    def reconstruct_backlog(self):
-        
-        import csv
-        with open(self.csv_title,'r') as backlogFile:
-            reader = csv.reader(backlogFile)
-            for row in reader:
-                block = Block(row[0],row[1],row[2],row[3],row[4],row[5],row[6],row[7])
-                self.back_orders.append(block)
-        
-        return 1
+   
                 
         
                   
@@ -341,9 +349,9 @@ class trading_account(object):
          
         buy_order = order_block
         buyprice = '%.8f' % buy_order.buy_price
-
-        buy_order.quantity_units = self.agent_weight / float(buyprice) ## converting it to units based on the agent weight & poition pricing
+        buy_order.quantity_units = buy_order.quantity_base / float(buyprice)
         buy_order.quantity_units = buy_order.quantity_units - (buy_order.quantity_units % self.pair_stepSize)
+        
         
         print("Making Buy order for ",buy_order.quantity_units,self.currency,"at ",buyprice,self.base)  
         try:
@@ -453,6 +461,7 @@ class trading_account(object):
                 print (e.status_code)
                 print (e.message)
                 print("")
+                time.sleep(70)
                 
             
         b_sum = 0
@@ -476,6 +485,9 @@ class trading_account(object):
             
             self.ask.append(Block(0,0,0,quantity_price,quantity_unit,quantity_base,a_pos,a_sum))
             a_pos+=1 
+            
+        self.ticker_close = self.bid[0].buy_price
+        print("Assumed Closing Price: ", self.ticker_close)
             
         self.book_spread = (self.ask[1].sell_price / self.ask[0].sell_price) - 1
         print("Order Book Spread: ",self.book_spread)
@@ -577,24 +589,32 @@ class trading_account(object):
     #### - If yes to all... take buy position
     
     def Get_Entry_Position(self, entry_block,rl):
-
-        ## just to make sure price did not go up again then we won't need to support it
         
-        self.get_ticker()
+        if len(self.back_orders) > 1:
+            if self.back_orders[-1].sell_uid != 0:
+                previous_entry = self.back_orders[-1]
+            else:
+                previous_entry = self.back_orders[-2]
+        elif len(self.back_orders) == 1:
+            previous_entry = self.back_orders[-1]
+
         
         if self.support_needed:            
-            if self.ticker_close >= self.back_orders[-1].buy_price:
+            if self.ticker_close >= previous_entry.buy_price:
+                print("_____SUPPORT NO LONGER NEEDED")
                 self.support_needed = 0 
                 return -1
             else:
-                loss = self.back_orders[-1].quantity_base * ( 1 - (self.ticker_close / self.back_orders[-1].buy_price)) 
+                loss = previous_entry.quantity_base * ( 1 - (self.ticker_close / previous_entry.buy_price)) 
                 print("Backorder Loss: ", loss)
         else:
             loss = 0
             
         p = rl - self.exchange_fee
+        additional_weight = (loss / (1 + p))
+        print("Additional Weight required: ", additional_weight)
         
-        quantity_base = self.agent_weight + (loss / (1 + p)) ##calculate how many btc we need to recover previous loss
+        quantity_base = self.agent_weight + additional_weight ##calculate how many btc we need to recover previous loss
         quantity_units = quantity_base / entry_block.buy_price
         
         entry_block.quantity_units = quantity_units
@@ -603,16 +623,15 @@ class trading_account(object):
         print("Making Entry at Block: ", entry_block.position, "..... Rate: ", entry_block.buy_price, ".... Base: ",entry_block.quantity_base, "... Units: ",entry_block.quantity_units)
         print("")
         
-        self.support_needed = 0 
         return entry_block
         
         
         
         
     def GetExitPosition(self):
-        
+        #time.sleep(4)
         self.get_orderbook()       
-        self.get_ticker()
+        #self.get_ticker()
         exit_order = 0
         
         entry = self.back_orders[-1] ##get last entry position
@@ -734,6 +753,8 @@ class trading_account(object):
                                     self.add_to_backlog(buy_pos)               ##back log it
                                     if self.MakeBuyOrder(buy_pos) == 0:                 ##execute order  
                                         self.remove_last_backlog()                        ##remove the last block since its been cancelled 
+                        else:
+                            self.remove_last_backlog()                        ##remove the last block since its been cancelled 
                    
                 
                 ##BUY ORDER HANDLER
