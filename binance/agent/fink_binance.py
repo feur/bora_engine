@@ -287,7 +287,7 @@ class trading_account(object):
                 block = Block(row[0],row[1],row[2],row[3],row[4],row[5],row[6],row[7])
                 self.back_orders.append(block)
         
-        if self.back_orders[-1].sell_uid == 0:
+        if len(self.back_orders) > 0 and self.back_orders[-1].sell_uid == 0:
             if self.GetOrderProperties(self.back_orders[-1].buy_uid)['status'] == 'NEW':
                 self.CancelOrder(self.back_orders[-1].buy_uid) ##cancel order
                 self.remove_last_backlog() ##remove it
@@ -346,27 +346,24 @@ class trading_account(object):
             
     ##make buy order at specified position 
     def MakeBuyOrder(self,order_block):
-         
+        
         buy_order = order_block
-        buyprice = '%.8f' % buy_order.buy_price
+        #buyprice = '%.8f' % buy_order.buy_price
         buy_order.quantity_units = buy_order.quantity_base / float(buyprice)
         buy_order.quantity_units = buy_order.quantity_units - (buy_order.quantity_units % self.pair_stepSize)
-        
-        
+        buy_order.quantity_base = buy_order.quantity_units * buy_order.buy_price
+         
         print("Making Buy order for ",buy_order.quantity_units,self.currency,"at ",buyprice,self.base)  
         try:
             data = self.account.order_limit_buy(symbol=self.symbol,quantity=buy_order.quantity_units,price=buyprice) ##now placing buy order
-            print("Buy Order in place !!!!!")
-            print("")
             ## Just to make sure its all in sync with binance...
             buy_order.buy_uid = str(data['orderId'])
-            buy_order.buy_price = float(data['price'])
-            buy_order.quantity_units = float(data['origQty'])
-            buy_order.quantity_base = buy_order.quantity_units * buy_order.buy_price
-            
+            #buy_order.quantity_units = float(data['origQty'])  
             ##Then backlog it 
+            print("Buy Order in place !!!!! ID: ", buy_order.buy_uid)
+            print("")
             self.update_last_backlog(buy_order)
-            self.log_activities(self.close[-1],str(buy_order.buy_price),"")
+            self.log_activities(self.ticker_close,str(buy_order.buy_price),"")
             return 1
                     
         except BinanceAPIException as e:
@@ -380,22 +377,25 @@ class trading_account(object):
     #make sell order at specified position 
     def MakeSellOrder(self,order_block):
         
-        OrderAmount = order_block.quantity_units 
+        #OrderAmount = order_block.quantity_units 
        
-        OrderAmount = OrderAmount - (OrderAmount % self.pair_stepSize)
-        OrderBase = OrderAmount * order_block.sell_price
-        sellprice = '%.8f' % order_block.sell_price
+        #OrderAmount = OrderAmount - (OrderAmount % self.pair_stepSize)
+        #OrderBase = OrderAmount * order_block.sell_price
+        #sellprice = '%.8f' % order_block.sell_price
+        
+        sell_order = order_block
+        sell_order.quantity_base = sell_order.quantity_units * sell_order.sell_price
         
         print("")
-        print("Making Sell order for ", OrderAmount,self.currency, ".....", OrderBase,self.base," at ",sellprice)
+        print("Making Sell order for ", sell_order.quantity_units ,self.currency, ".....", sell_order.quantity_base,self.base," at ",sell_order.sell_price)
         
         try:
-            data = self.account.order_limit_sell(symbol=self.symbol,quantity=OrderAmount,price=sellprice) ##now placing sell order
+            data = self.account.order_limit_sell(symbol=self.symbol,quantity=sell_order.quantity_units,price=sell_order.sell_price) ##now placing sell order
             ## Just to make sure its all in sync with binance...
-            self.back_orders[-1].sell_uid = str(data['orderId']) 
-            self.back_orders[-1].sell_price = float(data['price']) 
-            print("Sell Order in place !!!! ID: ", self.back_orders[-1].sell_uid)            
+            sell_order.sell_uid = str(data['orderId']) 
+            print("Sell Order in place !!!! ID: ", sell_order.sell_uid)            
             print("")
+            self.update_last_backlog(sell_order)
             self.log_activities(self.ticker_close,"",str(self.back_orders[-1].sell_price))
             return 1
         
@@ -404,14 +404,7 @@ class trading_account(object):
             print (e.status_code)
             print (e.message)
             print("")
-                
-            if e.status_code == 400: ##means we don't have the balance to sell, so force adjust  balance    
-                if len(self.back_orders) == 1:
-                    self.get_balance()
-                    self.back_orders[-1].quantity_units = self.balance_unit
-                    self.back_orders[-1].quantity_base = self.balance_base
-            else:
-                return 0
+            return 0 
            
                     
     
@@ -548,7 +541,7 @@ class trading_account(object):
                     y = a.position - 1
   
                     if x > 0 and y > 0 and self.bid[x].buy_price >= min(self.close):
-                        sl = self.bid[x].buy_price / self.close[-1] 
+                        sl = self.bid[x].buy_price / self.ticker_close
                         rl  = self.ask[y].sell_price / self.bid[x].buy_price
                         if rl  > (1 + self.exchange_fee):
                             #print("")
@@ -600,7 +593,7 @@ class trading_account(object):
 
         
         if self.support_needed:            
-            if self.ticker_close >= previous_entry.buy_price:
+            if self.ticker_close >= previous_entry.buy_price or len(self.back_orders) == 0:
                 print("_____SUPPORT NO LONGER NEEDED")
                 self.support_needed = 0 
                 return -1
@@ -673,7 +666,7 @@ class trading_account(object):
                 return -1
         else:
             print("No Exit found")
-            self.log_activities(self.close[-1],"","")
+            self.log_activities(self.ticker_close,"","")
             return 0
         
         
@@ -709,25 +702,25 @@ class trading_account(object):
                     original_qty = float(status['origQty'])
                     remaining_qty = original_qty - executed_qty
                     
+                    self.back_orders[-1].quantity_units = remaining_qty ##updated quantiy in back order
+                    self.back_orders[-1].quantity_base = self.back_orders[-1].quantity_units * self.back_orders[-1].sell_price   
+                    
                     if str(status['status']) == "NEW" or str(status['status']) == "PARTIALLY_FILLED":  ##we look to update sell order     
-                        
-                        self.back_orders[-1].quantity_units = remaining_qty ##updated quantiy in back order
-                        self.back_orders[-1].quantity_base = self.back_orders[-1].quantity_units * self.back_orders[-1].sell_price      
-                        
                         sell_pos = self.GetExitPosition()                             ##get updated Exit position
-                        if isinstance(sell_pos, Block) and sell_pos.sell_price != self.back_orders[-1].sell_price: ##we get a different exit position
-                            order_state = self.CancelOrder(self.back_orders[-1].sell_uid) ##cancel the current order
-                            self.MakeSellOrder(sell_pos)                                  ##execute order      
-                        elif isinstance(sell_pos, Block) and sell_pos.sell_price == self.back_orders[-1].sell_price: ##we get a different exit position
-                            self.log_activities(self.close[-1],"",str(sell_pos.sell_price))
-                            print("SELL ORDER IS GOOD ***********")
-                            print("")
-                        elif sell_pos < 0:                                 ##we need a support buy block
+                        if isinstance(sell_pos, Block):
+                            if sell_pos.sell_price != self.back_orders[-1].sell_price:        ##we get a different exit position
+                                order_state = self.CancelOrder(self.back_orders[-1].sell_uid) ##cancel the current order
+                                self.MakeSellOrder(sell_pos)                                  ##execute order   
+                            else:
+                                self.log_activities(self.ticker_close,"",str(sell_pos.sell_price))
+                                print("SELL ORDER IS GOOD ***********")
+                                print("")
+                        elif sell_pos <= 0:                                 ##we need a support buy block
                             buy_pos = self.market_study()                  ##find a buy position
                             if isinstance(buy_pos, Block):
                                 self.add_to_backlog(buy_pos)                         ##back log it
-                                if self.MakeBuyOrder(buy_pos) == 0:                 ##execute order  
-                                    self.remove_last_backlog()                      ##remove the last block since its been cancelled  
+                                if self.MakeBuyOrder(buy_pos) <= 0:                 ##execute order  
+                                    self.remove_last_backlog()                      ##remove the last block if we can't execute that buy order
                                                  
                     elif str(status['status'])== "FILLED":
                         print("SELL ORDER FILLED ****************")
@@ -737,22 +730,19 @@ class trading_account(object):
                     elif str(status['status']) == "CANCELED":
                         print("SELL ORDER CANCELED ****************")
                         print("")
-                        ##update the block quantity
-                        self.back_orders[-1].quantity_units = remaining_qty ##updated quantiy in back order
-                        self.back_orders[-1].quantity_base = self.back_orders[-1].quantity_units * self.back_orders[-1].sell_price  
                         
                         if (self.base == "USDT" and self.back_orders[-1].quantity_base > self.base_usd_min) or (self.base == "BTC" and self.back_orders[-1].quantity_base > self.base_btc_min):
                             print("remaining balance of cancelled order still needs to be cleared out")
-                            sell_pos = self.GetExitPosition()                             ##get updated Exit position
-                            if isinstance(sell_pos, Block) and sell_pos.sell_price != self.back_orders[-1].sell_price: ##we get a different exit position
-                                order_state = self.CancelOrder(self.back_orders[-1].sell_uid) ##cancel the current order
-                                self.MakeSellOrder(sell_pos)                   ##execute order       
+                            sell_pos = self.GetExitPosition()                                                    ##get Exit position    
+                            if isinstance(sell_pos, Block): 
+                                self.MakeSellOrder(sell_pos)                   ##execute order   
                             elif sell_pos < 0:                                 ##we need a support buy block
                                 buy_pos = self.market_study()                  ##find a buy position
                                 if isinstance(buy_pos, Block):
                                     self.add_to_backlog(buy_pos)               ##back log it
-                                    if self.MakeBuyOrder(buy_pos) == 0:                 ##execute order  
-                                        self.remove_last_backlog()                        ##remove the last block since its been cancelled 
+                                    if self.MakeBuyOrder(buy_pos) <= 0:        ##execute order  
+                                        self.remove_last_backlog()             ##remove the last block since its been cancelled  
+                                    
                         else:
                             self.remove_last_backlog()                        ##remove the last block since its been cancelled 
                    
@@ -772,72 +762,70 @@ class trading_account(object):
                     original_qty = float(status['origQty'])
                     remaining_qty = original_qty - executed_qty
                     
-                    if str(status['status']) == "NEW":          
-                        buy_pos = self.market_study()                                                            ##get updated Buy position
-                        if isinstance(buy_pos, Block) and buy_pos.buy_price != self.back_orders[-1].buy_price:   ##we get a different exit position
-                            order_state = self.CancelOrder(self.back_orders[-1].buy_uid)                         ##cancel the current order
-                            if order_state == 1 or order_state == -1:                                            ##buy order is Canceled
-                                self.MakeBuyOrder(buy_pos)                                                       ##execute order      
-                        elif isinstance(buy_pos, Block) and buy_pos.buy_price == self.back_orders[-1].buy_price: ##we get a different exit position
-                            self.log_activities(self.close[-1],str(buy_pos.buy_price),"")
-                            print("Buy ORDER IS GOOD ***********")
-                            print("")
-                        elif buy_pos < 0:                                                 ##we don't need a suppport block anymore
-                            order_state = self.CancelOrder(self.back_orders[-1].buy_uid) ##cancel the current order
-                            self.remove_last_backlog()                                  ##remove the last block since its not needed
-                            
-                    elif str(status['status']) == "PARTIALLY_FILLED" or str(status['status']) == "FILLED":       ## order has been touched 
+                    
+                    self.back_orders[-1].quantity_units = remaining_qty
+                    self.back_orders[-1].quantity_base = self.back_orders[-1].quantity_units * self.back_orders[-1].buy_price
+                    
+                    if str(status['status']) == "NEW":
+                        buy_pos = self.market_study() ## do a study
+                        if isinstance(buy_pos, Block):
+                            if buy_pos.buy_price != self.back_orders[-1].buy_price:                                  ##we get a different exit position
+                                order_state = self.CancelOrder(self.back_orders[-1].buy_uid)                         ##cancel the current order
+                                self.MakeBuyOrder(buy_pos)         
+                            else:
+                                self.log_activities(self.ticker_close,str(buy_pos.buy_price),"")
+                                print("Buy ORDER IS GOOD ***********")
+                                print("")
+                        elif buy_pos <= 0:
+                            order_state = self.CancelOrder(self.back_orders[-1].buy_uid)                             ##cancel the current order
+                            self.remove_last_backlog()                                                               ##remove the last block since its not needed   
+                                
+                    elif str(status['status']) == "PARTIALLY_FILLED" or str(status['status']) == "FILLED":           ## order has been touched 
                         print("BUY ORDER TOUCHED ****************")
                         print("")
-                        self.back_orders[-1].quantity_units = executed_qty * 0.999 ##updated quantiy in back order
-                        self.back_orders[-1].quantity_base = self.back_orders[-1].quantity_units * self.back_orders[-1].buy_price   
-                                             
+                                         
                         ##cancel buy order and find exit position
                         if str(status['status']) == "PARTIALLY_FILLED":
-                            order_state = self.CancelOrder(self.back_orders[-1].buy_uid) ##cancel the current order
-                            
-                        sell_pos = self.GetExitPosition()                            ##get Exit position
+                            order_state = self.CancelOrder(self.back_orders[-1].buy_uid)                         ##cancel the current order
+                            self.remove_last_backlog()                                                           ##remove the last block since its not needed 
+                        
+                        sell_pos = self.GetExitPosition()                                                    ##get Exit position    
                         if isinstance(sell_pos, Block): 
                             self.MakeSellOrder(sell_pos)                   ##execute order   
                         elif sell_pos < 0:                                 ##we need a support buy block
                             buy_pos = self.market_study()                  ##find a buy position
                             if isinstance(buy_pos, Block):
                                 self.add_to_backlog(buy_pos)               ##back log it
-                                if self.MakeBuyOrder(buy_pos) == 0:                 ##execute order  
-                                    self.remove_last_backlog()                        ##remove the last block since its been cancelled    
+                                if self.MakeBuyOrder(buy_pos) <= 0:        ##execute order  
+                                    self.remove_last_backlog()             ##remove the last block since its been cancelled  
+                                    
+                        
                                 
                     elif str(status['status']) == "CANCELED":
                         print("BUY ORDER CANCELED ****************")
                         print("")
-                        if executed_qty != 0: ##it was cancelled but there was a partial fill before it was cancelled 
-                            self.back_orders[-1].quantity_units = executed_qty ##updated quantiy in back order
-                            self.back_orders[-1].quantity_base = self.back_orders[-1].quantity_units * self.back_orders[-1].buy_price  
-                            sell_pos = self.GetExitPosition()                            ##get Exit position
-                            if isinstance(sell_pos, Block) and sell_pos.sell_price != self.back_orders[-1].sell_price: ##we get a different exit position
-                                order_state = self.CancelOrder(self.back_orders[-1].sell_uid) ##cancel the current order
-                                if order_state == 1 or order_state == -1:             ##sell order is Canceled
-                                    self.MakeSellOrder(sell_pos)                   ##execute order
-                                elif order_state == -1:                               ##order has been filled
-                                    self.remove_last_backlog()                        ##remove the last block since its filled       
-                                elif isinstance(sell_pos, Block) and sell_pos.sell_price == self.back_orders[-1].sell_price: ##we get a different exit position
-                                    self.log_activities(self.close[-1],"",str(sell_pos.sell_price))
-                                    print("SELL ORDER IS GOOD ***********")
-                                    print("")
+                        
+                        
+                        if executed_qty > 0: 
+                            sell_pos = self.GetExitPosition()                  ##get Exit position    
+                            if isinstance(sell_pos, Block): 
+                                self.MakeSellOrder(sell_pos)                   ##execute order   
                             elif sell_pos < 0:                                 ##we need a support buy block
                                 buy_pos = self.market_study()                  ##find a buy position
                                 if isinstance(buy_pos, Block):
                                     self.add_to_backlog(buy_pos)               ##back log it
-                                    if self.MakeBuyOrder(buy_pos) == 0:                 ##execute order  
-                                         self.remove_last_backlog()                        ##remove the last block since its been cancelled    
+                                    if self.MakeBuyOrder(buy_pos) <= 0:        ##execute order  
+                                        self.remove_last_backlog()             ##remove the last block since its been cancelled  
                         else:
-                            self.remove_last_backlog()                        ##remove the last block since its been cancelled    
-                            
+                            self.remove_last_backlog()                         ##remove the last block since its been cancelled    
+                                          
             else:
-                buy_pos = self.market_study() ##found buy position
+                buy_pos = self.market_study()                                  ##find buy position
                 if isinstance(buy_pos, Block):                          
-                    self.add_to_backlog(buy_pos) ##back log it
-                    if self.MakeBuyOrder(buy_pos) == 0:                 ##execute order  
-                        self.remove_last_backlog()                        ##remove the last block since its been cancelled  
+                    self.add_to_backlog(buy_pos)                               ##back log it
+                    if self.MakeBuyOrder(buy_pos) <= 0:                        ##execute order, if unable to  
+                        self.remove_last_backlog()                             ##remove the last block since its been cancelled  
+
                                 
                         
             print("UPDATING BACKLOG FILE")
@@ -855,7 +843,6 @@ class trading_account(object):
             print("Time taken: ",timetaken)
             print("______________DONE___________________")
             print("")
-          #  break
                     
                 
                 
