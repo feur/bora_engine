@@ -7,7 +7,7 @@ Agent model
 PID : process id of agent in the host
 Currency : currency that the agent is trading
 Base : base currency that the agent is using
-Exchange : exchnage that the agent is trading in
+Exchange : exchange that the agent is trading in
 Weight : trading weight
 Limit : limit
 host : agent host IP
@@ -19,6 +19,7 @@ action: status of the agent
 class Agent(models.Model):
     pid = models.CharField(max_length=256, blank=True)
     currency = models.CharField(max_length=256, blank=True)
+    exchange = models.CharField(max_length=256, blank=True)
     base = models.CharField(max_length=256, blank=True)
     weight = models.CharField(max_length=256, blank=True)
     limit = models.CharField(max_length=256, blank=True)
