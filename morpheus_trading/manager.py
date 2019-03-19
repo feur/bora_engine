@@ -40,8 +40,8 @@ def RunAgent(agentID,source,strategy,exchange):
         print(command)
     
     if command != 0:
+        subprocess.call(command, shell=True)
         time.sleep(10)
-        return subprocess.call(command, shell=True)
     else:
         return 0
 

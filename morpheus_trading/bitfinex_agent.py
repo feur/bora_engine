@@ -242,6 +242,11 @@ class trading_account(object):
         
         req = Client.get_symbol_candles(self.currency,self.base)
         
+        if req != 0:
+            data = req
+        else:
+            exit()
+        
         for i in range (len(req)):
             self.time.append(i)
             self.open.append(float(req[len(req)-i-1][1]))

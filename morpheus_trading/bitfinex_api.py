@@ -38,7 +38,11 @@ def get_symbol_candles(currency,base):
     url = 'https://api.bitfinex.com/v2/candles/trade:12h:'+"t"+currency.upper()+base.upper()+'/hist?'+"limit=5000"
     response = requests.get(url).json()
     
-    return response
+    if len(response) > 1:
+        return response
+    else:
+        print response
+        return 0
 
 
 def get_asset_balance(key,secret,asset):
